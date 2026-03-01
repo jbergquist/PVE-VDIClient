@@ -16,6 +16,8 @@ This project builds on the excellent work of:
 
 This repository continues their vision with cross-platform packaging, security improvements, and modern distribution methods.
 
+And yes, this is vibe coded like never before, I didn't have the time for such a big rewrite so here we are. Claude Code did its thing like a boss.
+
 ## Configuration File
 
 PVE VDI Client **REQUIRES** a configuration file to function. The client searches for this file in the following locations unless overridden with [command line options](#command-line-usage):
