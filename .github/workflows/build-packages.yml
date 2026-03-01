@@ -1,0 +1,253 @@
+---
+name: Build Multi-Platform Packages
+
+on:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  # Job 1: Build Debian .deb package
+  build-deb:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            debhelper \
+            dh-python \
+            python3-all \
+            python3-setuptools \
+            python3-stdeb
+
+      - name: Build .deb package
+        run: |
+          chmod +x packaging/linux/build-deb.sh
+          ./packaging/linux/build-deb.sh
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: debian-package
+          path: ../pve-vdiclient_*.deb
+          if-no-files-found: error
+
+  # Job 2: Build Fedora .rpm package
+  build-rpm:
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:latest
+    steps:
+      - name: Install git (required for actions/checkout)
+        run: dnf install -y git
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          dnf install -y \
+            rpm-build \
+            python3-devel \
+            python3-setuptools \
+            python3-pip \
+            tar
+
+      - name: Build .rpm package
+        run: |
+          chmod +x packaging/linux/build-rpm.sh
+          ./packaging/linux/build-rpm.sh
+
+      - name: Upload .rpm artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm-package
+          path: pve-vdiclient-*.rpm
+          if-no-files-found: error
+
+  # Job 3: Build AppImage
+  build-appimage:
+    runs-on: ubuntu-20.04  # Use older Ubuntu for better compatibility
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            python3-pip \
+            wget \
+            fuse \
+            libfuse2
+
+      - name: Build AppImage
+        run: |
+          chmod +x packaging/linux/build-appimage.sh
+          ./packaging/linux/build-appimage.sh
+
+      - name: Upload AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: appimage-package
+          path: VDIClient-*-x86_64.AppImage
+          if-no-files-found: error
+
+  # Job 4: Build Flatpak
+  build-flatpak:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Flatpak and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder
+          sudo flatpak remote-add --if-not-exists flathub \
+            https://flathub.org/repo/flathub.flatpakrepo
+          sudo flatpak install -y flathub \
+            org.freedesktop.Platform//23.08 \
+            org.freedesktop.Sdk//23.08
+
+      - name: Build Flatpak
+        run: |
+          chmod +x packaging/linux/build-flatpak.sh
+          ./packaging/linux/build-flatpak.sh
+
+      - name: Upload Flatpak artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flatpak-package
+          path: org.proxmox.VDIClient.flatpak
+          if-no-files-found: error
+
+  # Job 5: Build Windows MSI
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+
+      - name: Install WIX Toolset
+        run: |
+          choco install wixtoolset -y
+          $wixBin = "C:\Program Files (x86)\WiX Toolset v3.11\bin"
+          echo $wixBin | Out-File -FilePath $env:GITHUB_PATH `
+            -Encoding utf8 -Append
+
+      - name: Build Windows MSI
+        run: |
+          .\packaging\windows\build.ps1
+
+      - name: Upload MSI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-package
+          path: vdiclient-*.msi
+          if-no-files-found: error
+
+  # Job 6: Create GitHub Release (only on tag push)
+  create-release:
+    needs: [build-deb, build-rpm, build-appimage, build-flatpak, build-windows]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display artifact structure
+        run: ls -R artifacts/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/debian-package/*.deb
+            artifacts/rpm-package/*.rpm
+            artifacts/appimage-package/*.AppImage
+            artifacts/flatpak-package/*.flatpak
+            artifacts/windows-package/*.msi
+          body: |
+            ## PVE VDI Client ${{ github.ref_name }}
+
+            Multi-platform packages for Proxmox VE VDI client.
+
+            ### Installation
+
+            **Linux (Debian/Ubuntu)**:
+            ```bash
+            sudo dpkg -i pve-vdiclient_*_all.deb
+            sudo apt install virt-viewer
+            ```
+
+            **Linux (Fedora/RHEL)**:
+            ```bash
+            sudo dnf install pve-vdiclient-*.noarch.rpm \
+              virt-viewer
+            ```
+
+            **Linux (AppImage - Universal)**:
+            ```bash
+            chmod +x VDIClient-*-x86_64.AppImage
+            ./VDIClient-*-x86_64.AppImage
+            # Requires: virt-viewer separately
+            ```
+
+            **Linux (Flatpak)**:
+            ```bash
+            flatpak install --user org.proxmox.VDIClient.flatpak
+            flatpak run org.proxmox.VDIClient
+            ```
+
+            **Windows**:
+            1. Install [virt-viewer](
+               https://www.spice-space.org/download.html)
+            2. Run `vdiclient-*-64.msi`
+
+            ### Prerequisites
+
+            All platforms require **virt-viewer** for VM access:
+            - https://www.spice-space.org/download.html
+
+            ### Changelog
+
+            See commits for details.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
