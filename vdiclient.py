@@ -764,7 +764,7 @@ def is_certificate_valid(cert_path):
         cert = x509.load_pem_x509_certificate(cert_data, default_backend())
 
         # Check not expired
-        now = datetime.utcnow()
+        now = datetime.now(datetime.UTC)
         if cert.not_valid_after < now:
             return False  # Expired
 
@@ -834,8 +834,8 @@ def generate_self_signed_cert():
             .issuer_name(issuer)
             .public_key(private_key.public_key())
             .serial_number(x509.random_serial_number())
-            .not_valid_before(datetime.utcnow())
-            .not_valid_after(datetime.utcnow() + timedelta(days=365))
+            .not_valid_before(datetime.now(datetime.UTC))
+            .not_valid_after(datetime.now(datetime.UTC) + timedelta(days=365))
             .add_extension(
                 x509.SubjectAlternativeName(
                     [
