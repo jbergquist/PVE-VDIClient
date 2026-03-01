@@ -756,7 +756,7 @@ def is_certificate_valid(cert_path):
     try:
         from cryptography import x509
         from cryptography.hazmat.backends import default_backend
-        from datetime import datetime
+        from datetime import datetime, UTC
 
         with open(cert_path, "rb") as f:
             cert_data = f.read()
@@ -764,7 +764,7 @@ def is_certificate_valid(cert_path):
         cert = x509.load_pem_x509_certificate(cert_data, default_backend())
 
         # Check not expired
-        now = datetime.now(datetime.UTC)
+        now = datetime.now(UTC)
         if cert.not_valid_after < now:
             return False  # Expired
 
@@ -793,7 +793,7 @@ def generate_self_signed_cert():
         from cryptography.hazmat.primitives import hashes
         from cryptography.hazmat.primitives.asymmetric import rsa
         from cryptography.hazmat.primitives import serialization
-        from datetime import datetime, timedelta
+        from datetime import datetime, timedelta, UTC
         import ipaddress
     except ImportError:
         print("Error: cryptography module required for HTTPS support")
@@ -834,8 +834,8 @@ def generate_self_signed_cert():
             .issuer_name(issuer)
             .public_key(private_key.public_key())
             .serial_number(x509.random_serial_number())
-            .not_valid_before(datetime.now(datetime.UTC))
-            .not_valid_after(datetime.now(datetime.UTC) + timedelta(days=365))
+            .not_valid_before(datetime.now(UTC))
+            .not_valid_after(datetime.now(UTC) + timedelta(days=365))
             .add_extension(
                 x509.SubjectAlternativeName(
                     [
