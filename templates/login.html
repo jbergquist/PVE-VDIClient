@@ -4,6 +4,27 @@
 <div class="min-h-screen flex items-center justify-center px-4 py-12">
     <div class="w-full max-w-md animate-slide-up">
 
+        <!-- Server Shutdown Warning Banner -->
+        <div id="server-shutdown-banner" class="hidden mb-4">
+            <div class="backdrop-blur-xl bg-amber-500/15 border border-amber-500/30 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <svg class="w-5 h-5 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                    <div>
+                        <p class="text-sm font-semibold text-amber-200">Server Maintenance Scheduled</p>
+                        <p class="text-xs text-amber-300/80">Server shuts down in <span id="server-countdown-text" class="font-mono font-bold">--:--</span></p>
+                    </div>
+                </div>
+                <button onclick="dismissServerBanner()" class="text-amber-300 hover:text-amber-100 transition-colors p-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
         <!-- Flash Messages -->
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -168,4 +189,105 @@
         </p>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Server shutdown countdown state
+    let serverShutdownEnabled = false;
+    let serverRemainingSeconds = 0;
+    let serverBannerDismissed = false;
+    let countdownInterval;
+
+    // Initialize server shutdown countdown
+    async function initializeServerCountdown() {
+        try {
+            const serverRes = await fetch('/api/server-status');
+            if (serverRes.ok) {
+                const serverData = await serverRes.json();
+                serverShutdownEnabled = serverData.server_shutdown_enabled;
+                if (serverShutdownEnabled) {
+                    serverRemainingSeconds = serverData.server_remaining_seconds;
+                    if (!serverBannerDismissed && serverRemainingSeconds <= 600) {
+                        document.getElementById('server-shutdown-banner').classList.remove('hidden');
+                    }
+                    // Start countdown update interval
+                    updateServerCountdown();
+                    countdownInterval = setInterval(updateServerCountdown, 1000);
+                }
+            }
+        } catch (e) {
+            console.error('Failed to initialize server countdown:', e);
+        }
+    }
+
+    function updateServerCountdown() {
+        if (serverShutdownEnabled && serverRemainingSeconds > 0) {
+            serverRemainingSeconds--;
+            updateServerDisplay(serverRemainingSeconds);
+
+            // Show banner when reaching 10 minutes
+            if (serverRemainingSeconds === 600 && !serverBannerDismissed) {
+                document.getElementById('server-shutdown-banner').classList.remove('hidden');
+            }
+
+            // Stop countdown when server shuts down
+            if (serverRemainingSeconds <= 0) {
+                clearInterval(countdownInterval);
+            }
+        }
+    }
+
+    function updateServerDisplay(seconds) {
+        const text = document.getElementById('server-countdown-text');
+
+        if (seconds <= 0) {
+            text.textContent = '00:00';
+            return;
+        }
+
+        const minutes = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        text.textContent = `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function dismissServerBanner() {
+        serverBannerDismissed = true;
+        document.getElementById('server-shutdown-banner').classList.add('hidden');
+    }
+
+    // Sync timer when tab becomes visible again
+    document.addEventListener('visibilitychange', async () => {
+        if (!document.hidden && serverShutdownEnabled) {
+            try {
+                const res = await fetch('/api/server-status');
+                if (res.ok) {
+                    const data = await res.json();
+                    serverRemainingSeconds = data.server_remaining_seconds;
+                    updateServerDisplay(serverRemainingSeconds);
+                }
+            } catch (e) {
+                console.error('Visibility sync failed:', e);
+            }
+        }
+    });
+
+    // Initialize on page load
+    initializeServerCountdown();
+
+    // Sync with server every 30 seconds
+    setInterval(async () => {
+        if (serverShutdownEnabled) {
+            try {
+                const res = await fetch('/api/server-status');
+                if (res.ok) {
+                    const data = await res.json();
+                    serverRemainingSeconds = data.server_remaining_seconds;
+                }
+            } catch (e) {
+                console.error('Server sync failed:', e);
+            }
+        }
+    }, 30000);
+</script>
 {% endblock %}
