@@ -1,0 +1,18 @@
+#!/usr/bin/make -f
+# Debian rules file for pve-vdiclient
+
+# Enable hardening build flags
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+# Use pybuild for Python packaging
+%:
+	dh $@ --with python3 --buildsystem=pybuild
+
+# Skip tests during build (can be enabled later)
+override_dh_auto_test:
+	@echo "Skipping tests during package build"
+
+# Ensure proper permissions
+override_dh_fixperms:
+	dh_fixperms
+	chmod 755 debian/pve-vdiclient/usr/bin/vdiclient || true

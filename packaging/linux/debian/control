@@ -1,0 +1,40 @@
+Source: pve-vdiclient
+Section: admin
+Priority: optional
+Maintainer: jbergquist
+Build-Depends: debhelper (>= 12),
+               dh-python,
+               python3-all (>= 3.12),
+               python3-setuptools,
+               python3-flask (>= 3.0),
+               python3-requests,
+               python3-urllib3,
+               python3-proxmoxer
+Standards-Version: 4.6.0
+Homepage: https://github.com/jbergquist/PVE-VDIClient
+Vcs-Browser: https://github.com/jbergquist/PVE-VDIClient
+Vcs-Git: https://github.com/jbergquist/PVE-VDIClient.git
+
+Package: pve-vdiclient
+Architecture: all
+Depends: ${python3:Depends},
+         ${misc:Depends},
+         python3 (>= 3.12),
+         python3-flask (>= 3.0),
+         python3-requests,
+         python3-urllib3,
+         virt-viewer
+Recommends: python3-proxmoxer
+Description: Flask-based web client for Proxmox VE VDI
+ PVE VDI Client provides a modern web interface for accessing virtual
+ desktops in Proxmox VE environments. It supports SPICE protocol for
+ remote desktop access and integrates with virt-viewer for launching
+ VM console sessions.
+ .
+ Features:
+  - Web-based login and VM selection
+  - SPICE protocol support for virtual desktops
+  - Integration with Proxmox VE authentication
+  - Support for multiple Proxmox clusters
+  - Session timeout and auto-shutdown
+  - Compatible with PVE 7, 8, and 9
