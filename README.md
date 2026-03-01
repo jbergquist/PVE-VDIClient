@@ -6,7 +6,15 @@
 
 This project's focus is to create a simple VDI client intended for mass deployment. This VDI client connects directly to Proxmox VE and allows users to connect (via Spice) to any VMs they have permission to access.
 
-**Credit**: [stefan-ffr/PVE-VDIClient](https://github.com/stefan-ffr/PVE-VDIClient) did an awesome addition and ported the GUI to Flask, so you just need a browser installed.
+## Credits
+
+This project builds on the excellent work of:
+
+- **[joshpatten](https://github.com/joshpatten)** - Original creator of [PVE-VDIClient](https://github.com/joshpatten/PVE-VDIClient). An awesome human being for starting this project and making VDI access to Proxmox so accessible. The foundation of everything we have today! 🙏
+
+- **[stefan-ffr](https://github.com/stefan-ffr)** - Created the [Flask port](https://github.com/stefan-ffr/PVE-VDIClient) that replaced the GTK interface with a modern web-based UI. This brilliant move meant users only need a browser - no heavy GUI dependencies. The game-changing fork that made mass deployment practical! 🚀
+
+This repository continues their vision with cross-platform packaging, security improvements, and modern distribution methods.
 
 ## Configuration File
 
