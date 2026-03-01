@@ -185,12 +185,6 @@ flatpak run org.proxmox.VDIClient
 1. Install [virt-viewer](https://www.spice-space.org/download.html)
 2. Download and run [vdiclient-2.0.2-64.msi](https://github.com/jbergquist/PVE-VDIClient/releases/latest)
 
-**Python (pip)**:
-
-```bash
-pip install pve-vdiclient
-```
-
 For detailed installation instructions, see [docs/INSTALLATION.md](docs/INSTALLATION.md).
 
 ## Building from Source
