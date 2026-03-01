@@ -121,3 +121,29 @@ class Platform:
 
         else:
             raise RuntimeError(f"Unsupported platform: {sys.platform}")
+
+    @staticmethod
+    def get_ssl_directory() -> str:
+        """Get platform-specific directory for SSL certificates.
+
+        Returns XDG-compliant paths on POSIX, APPDATA on Windows.
+        Creates directory if it doesn't exist.
+
+        Returns:
+            Path to SSL certificate storage directory
+        """
+        if Platform.is_windows():
+            appdata = os.getenv("APPDATA", "")
+            ssl_dir = os.path.join(appdata, "VDIClient", "ssl")
+        elif Platform.is_posix():
+            xdg_config_home = os.getenv(
+                "XDG_CONFIG_HOME", os.path.expanduser("~/.config")
+            )
+            ssl_dir = os.path.join(xdg_config_home, "VDIClient", "ssl")
+        else:
+            # Fallback
+            ssl_dir = os.path.join(os.path.expanduser("~"), ".vdiclient", "ssl")
+
+        # Create directory if it doesn't exist
+        os.makedirs(ssl_dir, mode=0o700, exist_ok=True)
+        return ssl_dir

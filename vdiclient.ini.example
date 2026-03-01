@@ -31,6 +31,14 @@ session_timeout = 0
 # Server shuts down after this duration from startup
 server_shutdown_timeout = 0
 
+# Enable HTTPS on localhost with auto-generated self-signed certificate
+# When enabled, a self-signed certificate is automatically created and stored in:
+#   - Linux: ~/.config/VDIClient/ssl/
+#   - Windows: %APPDATA%\VDIClient\ssl\
+# Note: Browsers will show security warnings for self-signed certificates
+# Default: False
+localhosttls = False
+
 # PVE-VDIClient supports multiple clusters. Define them with sections that start with Hosts. followed by the name
 # you wish to display to your end users. This example is Hosts.PVE which would display PVE to your users
 [Hosts.PVE]

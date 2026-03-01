@@ -69,6 +69,9 @@ class G:
     server_shutdown_timeout = 0  # seconds, 0 = disabled
     last_activity_time = None  # timestamp of last user activity
     server_start_time = None  # timestamp when server started
+    localhosttls = False  # Enable HTTPS on localhost with self-signed cert
+    ssl_cert_path = None  # Path to generated certificate
+    ssl_key_path = None  # Path to generated private key
 
 
 def loadconfig(
@@ -163,6 +166,9 @@ def loadconfig(
         if G.server_shutdown_timeout < 0:
             print("Warning: server_shutdown_timeout cannot be negative, setting to 0")
             G.server_shutdown_timeout = 0
+
+    if "localhosttls" in general:
+        G.localhosttls = general.getboolean("localhosttls")
 
     if "Authentication" in config:  # Legacy configuration
         G.hosts["DEFAULT"] = _default_hostset()
@@ -719,6 +725,139 @@ def check_server_shutdown():
         time.sleep(5)  # Check every 5 seconds
 
 
+def is_certificate_valid(cert_path):
+    """Check if certificate exists and is not expired.
+
+    Args:
+        cert_path: Path to certificate file
+
+    Returns:
+        True if certificate is valid and not expired, False otherwise
+    """
+    try:
+        from cryptography import x509
+        from cryptography.hazmat.backends import default_backend
+        from datetime import datetime
+
+        with open(cert_path, "rb") as f:
+            cert_data = f.read()
+
+        cert = x509.load_pem_x509_certificate(cert_data, default_backend())
+
+        # Check not expired
+        now = datetime.utcnow()
+        if cert.not_valid_after < now:
+            return False  # Expired
+
+        # Check not used before validity period
+        if cert.not_valid_before > now:
+            return False  # Not yet valid
+
+        return True
+    except Exception:
+        return False  # Invalid or unreadable
+
+
+def generate_self_signed_cert():
+    """Generate or reuse self-signed certificate for localhost.
+
+    Generates a new self-signed certificate valid for localhost if one doesn't
+    exist or if the existing certificate is expired. Stores certificate and
+    private key in platform-specific config directory.
+
+    Returns:
+        tuple: (cert_path, key_path) or (None, None) if generation failed
+    """
+    try:
+        from cryptography import x509
+        from cryptography.x509.oid import NameOID
+        from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.hazmat.primitives import serialization
+        from datetime import datetime, timedelta
+        import ipaddress
+    except ImportError:
+        print("Error: cryptography module required for HTTPS support")
+        print("Install with: pip install cryptography")
+        return None, None
+
+    try:
+        # Get SSL directory path (platform-specific via Platform class)
+        ssl_dir = Platform.get_ssl_directory()
+        cert_path = os.path.join(ssl_dir, "localhost.crt")
+        key_path = os.path.join(ssl_dir, "localhost.key")
+
+        # Check if valid certificate already exists
+        if os.path.exists(cert_path) and os.path.exists(key_path):
+            # Verify not expired (check certificate validity)
+            if is_certificate_valid(cert_path):
+                return cert_path, key_path
+
+        # Generate new certificate
+        print("Generating self-signed certificate for localhost...")
+
+        # Generate private key
+        private_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+        )
+
+        # Generate certificate
+        subject = issuer = x509.Name(
+            [
+                x509.NameAttribute(NameOID.COMMON_NAME, "localhost"),
+            ]
+        )
+
+        cert = (
+            x509.CertificateBuilder()
+            .subject_name(subject)
+            .issuer_name(issuer)
+            .public_key(private_key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(datetime.utcnow())
+            .not_valid_after(datetime.utcnow() + timedelta(days=365))
+            .add_extension(
+                x509.SubjectAlternativeName(
+                    [
+                        x509.DNSName("localhost"),
+                        x509.IPAddress(ipaddress.IPv4Address("127.0.0.1")),
+                    ]
+                ),
+                critical=False,
+            )
+            .sign(private_key, hashes.SHA256())
+        )
+
+        # Write private key
+        with open(key_path, "wb") as f:
+            f.write(
+                private_key.private_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PrivateFormat.TraditionalOpenSSL,
+                    encryption_algorithm=serialization.NoEncryption(),
+                )
+            )
+
+        # Set private key permissions (owner read/write only)
+        os.chmod(key_path, 0o600)
+
+        # Write certificate
+        with open(cert_path, "wb") as f:
+            f.write(cert.public_bytes(serialization.Encoding.PEM))
+
+        # Set certificate permissions (owner read/write, others read)
+        os.chmod(cert_path, 0o644)
+
+        print("Certificate generated successfully")
+
+        return cert_path, key_path
+
+    except Exception as e:
+        print(f"Error generating self-signed certificate: {e}")
+        return None, None
+
+
 def main():
     parser = argparse.ArgumentParser(description="Proxmox VDI Client")
     parser.add_argument(
@@ -766,6 +905,31 @@ def main():
     ):
         return 1
 
+    # Generate SSL certificate if localhosttls is enabled
+    ssl_context = None
+    if G.localhosttls:
+        try:
+            cert_path, key_path = generate_self_signed_cert()
+            if cert_path and key_path:
+                G.ssl_cert_path = cert_path
+                G.ssl_key_path = key_path
+
+                # Create SSL context
+                import ssl
+
+                ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+                ssl_context.load_cert_chain(cert_path, key_path)
+
+                print("HTTPS enabled with self-signed certificate")
+                print(f"Certificate: {cert_path}")
+            else:
+                print("Warning: Failed to setup HTTPS, falling back to HTTP")
+                G.localhosttls = False
+        except Exception as e:
+            print(f"Warning: Failed to setup HTTPS, falling back to HTTP: {e}")
+            G.localhosttls = False
+            ssl_context = None
+
     # Auto-login with API token (single cluster only)
     hostset = G.hosts[G.current_hostset]
     if (
@@ -796,16 +960,24 @@ def main():
         shutdown_thread.start()
 
     if not args.no_browser:
+        protocol = "https" if G.localhosttls and ssl_context else "http"
         Thread(
             target=lambda: (
                 time.sleep(1.5),
-                webbrowser.open(f"http://{args.host}:{args.port}"),
+                webbrowser.open(f"{protocol}://{args.host}:{args.port}"),
             ),
             daemon=True,
         ).start()
 
-    print(f"PVE VDI Client running at http://{args.host}:{args.port}")
-    app.run(host=args.host, port=args.port, debug=False, threaded=True)
+    protocol = "https" if ssl_context else "http"
+    print(f"PVE VDI Client running at {protocol}://{args.host}:{args.port}")
+    app.run(
+        host=args.host,
+        port=args.port,
+        debug=False,
+        threaded=True,
+        ssl_context=ssl_context,
+    )
     return 0
 
 
