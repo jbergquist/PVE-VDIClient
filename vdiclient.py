@@ -93,6 +93,7 @@ class G:
     localhosttls = False  # Enable HTTPS on localhost with self-signed cert
     ssl_cert_path = None  # Path to generated certificate
     ssl_key_path = None  # Path to generated private key
+    log_level = None  # Log level from ini file (overridden by CLI/env)
 
 
 def loadconfig(
@@ -108,7 +109,7 @@ def loadconfig(
     if config_type == "file":
         if config_location:
             if not os.path.isfile(config_location):
-                print(f"Error: Configuration file not found: {config_location}")
+                logger.error("Configuration file not found: %s", config_location)
                 return False
         else:
             # Use platform abstraction for config paths
@@ -118,17 +119,17 @@ def loadconfig(
                     config_location = location
                     break
             if not config_location:
-                print("Error: No configuration file found in any default location!")
+                logger.error("No configuration file found in any default location")
                 return False
         try:
             config.read(config_location)
-        except Exception as e:
-            print(f"Error: Unable to read configuration file: {e!r}")
+        except Exception:
+            logger.exception("Unable to read configuration file")
             return False
 
     elif config_type == "http":
         if not config_location:
-            print("Error: --config_type http requires --config_location URL!")
+            logger.error("--config_type http requires --config_location URL")
             return False
         try:
             if config_username and config_password:
@@ -140,12 +141,14 @@ def loadconfig(
             else:
                 r = requests.get(url=config_location, verify=ssl_verify)
             config.read_string(r.text)
-        except Exception as e:
-            print(f"Error: Unable to read configuration from URL: {e}")
+        except Exception:
+            logger.exception(
+                "Unable to read configuration from URL: %s", config_location
+            )
             return False
 
     if "General" not in config:
-        print("Error: No [General] section defined in configuration!")
+        logger.error("No [General] section defined in configuration")
         return False
 
     general = config["General"]
@@ -179,22 +182,25 @@ def loadconfig(
     if "session_timeout" in general:
         G.session_timeout = general.getint("session_timeout")
         if G.session_timeout < 0:
-            print("Warning: session_timeout cannot be negative, setting to 0")
+            logger.warning("session_timeout cannot be negative, setting to 0")
             G.session_timeout = 0
 
     if "server_shutdown_timeout" in general:
         G.server_shutdown_timeout = general.getint("server_shutdown_timeout")
         if G.server_shutdown_timeout < 0:
-            print("Warning: server_shutdown_timeout cannot be negative, setting to 0")
+            logger.warning("server_shutdown_timeout cannot be negative, setting to 0")
             G.server_shutdown_timeout = 0
 
     if "localhosttls" in general:
         G.localhosttls = general.getboolean("localhosttls")
 
+    if "log_level" in general:
+        G.log_level = general["log_level"]
+
     if "Authentication" in config:  # Legacy configuration
         G.hosts["DEFAULT"] = _default_hostset()
         if "Hosts" not in config:
-            print("Error: No [Hosts] section defined!")
+            logger.error("No [Hosts] section defined in configuration")
             return False
         for key in config["Hosts"]:
             G.hosts["DEFAULT"]["hostpool"].append(
@@ -212,8 +218,8 @@ def loadconfig(
                 G.hosts[group] = _default_hostset()
                 try:
                     hostjson = json.loads(config[section]["hostpool"])
-                except Exception as e:
-                    print(f"Error: Could not parse hostpool in [{section}]: {e!r}")
+                except Exception:
+                    logger.exception("Could not parse hostpool in [%s]", section)
                     return False
                 for key, value in hostjson.items():
                     G.hosts[group]["hostpool"].append({"host": key, "port": int(value)})
@@ -267,8 +273,8 @@ def _parse_host_options(hostset, section):
     if "knock_seq" in section:
         try:
             hostset["knock_seq"] = json.loads(section["knock_seq"])
-        except Exception as e:
-            print(f"Warning: Knock sequence not valid JSON, skipping: {e!r}")
+        except Exception:
+            logger.warning("Knock sequence not valid JSON, skipping", exc_info=True)
 
 
 def setcmd():
@@ -276,7 +282,7 @@ def setcmd():
     try:
         G.vvcmd = Platform.find_virt_viewer()
     except RuntimeError as e:
-        print(f"Error: {e}")
+        logger.error("virt-viewer not found: %s", e)
         sys.exit(1)
 
 
@@ -354,11 +360,11 @@ def getvms(listonly=False):
                 else:
                     vms.append(vm)
         return vms
-    except proxmoxer.core.ResourceException as e:
-        print(f"Error getting VMs: {e!r}")
+    except proxmoxer.core.ResourceException:
+        logger.exception("Error getting VMs")
         return []
-    except requests.exceptions.ConnectionError as e:
-        print(f"Connection error querying Proxmox: {e!r}")
+    except requests.exceptions.ConnectionError:
+        logger.exception("Connection error querying Proxmox")
         return []
 
 
@@ -399,7 +405,7 @@ def vmaction(vmnode, vmid, vmtype, action="connect"):
             vmstatus = G.proxmox.nodes(vmnode).qemu(str(vmid)).status.get("current")
         else:
             vmstatus = G.proxmox.nodes(vmnode).lxc(str(vmid)).status.get("current")
-    except Exception as e:
+    except Exception:
         logger.exception("Unable to get VM status for %s on node %s", vmid, vmnode)
         return {"success": False, "error": "Unable to get VM status"}
 
@@ -414,7 +420,7 @@ def vmaction(vmnode, vmid, vmtype, action="connect"):
                 jobid = (
                     G.proxmox.nodes(vmnode).lxc(str(vmid)).status.stop.post(timeout=28)
                 )
-        except proxmoxer.core.ResourceException as e:
+        except proxmoxer.core.ResourceException:
             logger.exception("Unable to stop VM %s on node %s", vmid, vmnode)
             return {"success": False, "error": "Unable to stop VM"}
 
@@ -423,7 +429,15 @@ def vmaction(vmnode, vmid, vmtype, action="connect"):
         for _ in range(30):
             try:
                 jobstatus = G.proxmox.nodes(vmnode).tasks(jobid).status.get()
-            except Exception:
+            except (
+                proxmoxer.core.ResourceException,
+                requests.exceptions.ConnectionError,
+            ) as e:
+                logger.debug(
+                    "Transient error polling stop-job status for VM %s: %s",
+                    vmid,
+                    e,
+                )
                 jobstatus = {}
             if "exitstatus" in jobstatus:
                 if jobstatus["exitstatus"] != "OK":
@@ -440,7 +454,7 @@ def vmaction(vmnode, vmid, vmtype, action="connect"):
             vmstatus = G.proxmox.nodes(vmnode).qemu(str(vmid)).status.get("current")
         else:
             vmstatus = G.proxmox.nodes(vmnode).lxc(str(vmid)).status.get("current")
-    except Exception as e:
+    except Exception:
         logger.exception("Unable to refresh VM status for %s on node %s", vmid, vmnode)
         return {"success": False, "error": "Unable to get VM status"}
 
@@ -457,7 +471,7 @@ def vmaction(vmnode, vmid, vmtype, action="connect"):
                 jobid = (
                     G.proxmox.nodes(vmnode).lxc(str(vmid)).status.start.post(timeout=28)
                 )
-        except proxmoxer.core.ResourceException as e:
+        except proxmoxer.core.ResourceException:
             logger.exception("Unable to start VM %s on node %s", vmid, vmnode)
             return {"success": False, "error": "Unable to start VM"}
 
@@ -465,7 +479,15 @@ def vmaction(vmnode, vmid, vmtype, action="connect"):
         for _ in range(30):
             try:
                 jobstatus = G.proxmox.nodes(vmnode).tasks(jobid).status.get()
-            except Exception:
+            except (
+                proxmoxer.core.ResourceException,
+                requests.exceptions.ConnectionError,
+            ) as e:
+                logger.debug(
+                    "Transient error polling start-job status for VM %s: %s",
+                    vmid,
+                    e,
+                )
                 jobstatus = {}
             if "exitstatus" in jobstatus:
                 if jobstatus["exitstatus"] != "OK":
@@ -485,13 +507,14 @@ def vmaction(vmnode, vmid, vmtype, action="connect"):
             spiceconfig = G.proxmox.nodes(vmnode).qemu(str(vmid)).spiceproxy.post()
         else:
             spiceconfig = G.proxmox.nodes(vmnode).lxc(str(vmid)).spiceproxy.post()
-    except proxmoxer.core.ResourceException as e:
-        logger.exception("Unable to connect to VM %s on node %s via SPICE", vmid, vmnode)
+    except proxmoxer.core.ResourceException:
+        logger.exception(
+            "Unable to connect to VM %s on node %s via SPICE", vmid, vmnode
+        )
         return {
             "success": False,
             "error": (
-                f"Unable to connect to VM {vmid}. "
-                "Is SPICE display configured?"
+                f"Unable to connect to VM {vmid}. " "Is SPICE display configured?"
             ),
         }
 
@@ -518,7 +541,7 @@ def vmaction(vmnode, vmid, vmtype, action="connect"):
     inistring = inifile.read()
 
     if G.inidebug:
-        print(f"SPICE Config:\n{inistring}")
+        logger.debug("SPICE Config:\n%s", inistring)
 
     # Launch virt-viewer
     pcmd = [G.vvcmd]
@@ -746,7 +769,7 @@ def check_server_shutdown():
         if G.server_shutdown_timeout > 0 and G.server_start_time:
             elapsed = time.time() - G.server_start_time
             if elapsed >= G.server_shutdown_timeout:
-                print("Server shutdown timeout reached. Shutting down...")
+                logger.info("Server shutdown timeout reached, shutting down")
                 os._exit(0)
         time.sleep(5)  # Check every 5 seconds
 
@@ -780,7 +803,8 @@ def is_certificate_valid(cert_path):
             return False  # Not yet valid
 
         return True
-    except Exception:
+    except Exception as e:
+        logger.debug("Certificate validity check failed for %s: %s", cert_path, e)
         return False  # Invalid or unreadable
 
 
@@ -803,8 +827,8 @@ def generate_self_signed_cert():
         from datetime import datetime, timedelta, UTC
         import ipaddress
     except ImportError:
-        print("Error: cryptography module required for HTTPS support")
-        print("Install with: pip install cryptography")
+        logger.error("cryptography module required for HTTPS support")
+        logger.error("Install the cryptography package to enable HTTPS")
         return None, None
 
     try:
@@ -820,7 +844,7 @@ def generate_self_signed_cert():
                 return cert_path, key_path
 
         # Generate new certificate
-        print("Generating self-signed certificate for localhost...")
+        logger.info("Generating self-signed certificate for localhost")
 
         # Generate private key
         private_key = rsa.generate_private_key(
@@ -875,12 +899,12 @@ def generate_self_signed_cert():
         # Set certificate permissions (owner read/write, others read)
         os.chmod(cert_path, 0o644)
 
-        print("Certificate generated successfully")
+        logger.info("Self-signed certificate generated successfully")
 
         return cert_path, key_path
 
-    except Exception as e:
-        print(f"Error generating self-signed certificate: {e}")
+    except Exception:
+        logger.exception("Error generating self-signed certificate")
         return None, None
 
 
@@ -918,7 +942,23 @@ def main():
     parser.add_argument(
         "--no-browser", action="store_true", help="Do not auto-open browser on start"
     )
+    parser.add_argument(
+        "--log-level",
+        default=None,
+        help="Log level: DEBUG, INFO, WARNING, ERROR (default: INFO)",
+    )
     args = parser.parse_args()
+
+    # Phase 1: bootstrap logging before config is loaded
+    _log_level_str = args.log_level or os.environ.get("LOG_LEVEL", "INFO")
+    _log_level = getattr(logging, _log_level_str.upper(), logging.INFO)
+    logging.basicConfig(
+        level=_log_level,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        stream=sys.stderr,
+    )
+    for _noisy in ("werkzeug", "proxmoxer", "requests", "urllib3"):
+        logging.getLogger(_noisy).setLevel(logging.WARNING)
 
     setcmd()
 
@@ -930,6 +970,12 @@ def main():
         ssl_verify=args.ignore_ssl,
     ):
         return 1
+
+    # Phase 2: apply ini log_level if CLI/env didn't override
+    if not args.log_level and not os.environ.get("LOG_LEVEL") and G.log_level:
+        _ini_level = getattr(logging, G.log_level.upper(), None)
+        if _ini_level:
+            logging.getLogger().setLevel(_ini_level)
 
     # Generate SSL certificate if localhosttls is enabled
     ssl_context = None
@@ -946,13 +992,13 @@ def main():
                 ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
                 ssl_context.load_cert_chain(cert_path, key_path)
 
-                print("HTTPS enabled with self-signed certificate")
-                print(f"Certificate: {cert_path}")
+                logger.info("HTTPS enabled with self-signed certificate")
+                logger.info("Certificate path: %s", cert_path)
             else:
-                print("Warning: Failed to setup HTTPS, falling back to HTTP")
+                logger.warning("Failed to setup HTTPS, falling back to HTTP")
                 G.localhosttls = False
-        except Exception as e:
-            print(f"Warning: Failed to setup HTTPS, falling back to HTTP: {e}")
+        except Exception:
+            logger.exception("Failed to setup HTTPS, falling back to HTTP")
             G.localhosttls = False
             ssl_context = None
 
@@ -964,22 +1010,23 @@ def main():
         and hostset["token_value"]
         and len(G.hosts) == 1
     ):
-        print("Auto-authenticating with API token...")
+        logger.info("Auto-authenticating with API token")
         connected, authenticated, error = pveauth(hostset["user"])
         if connected and authenticated:
             G.authenticated = True
             if G.session_timeout > 0:
                 G.last_activity_time = time.time()
-            print("Authentication successful.")
+            logger.info("API token authentication successful")
         else:
-            print(f"Auto-authentication failed: {error}")
+            logger.error("API token authentication failed: %s", error)
 
     # Set server start time for shutdown countdown
     if G.server_shutdown_timeout > 0:
         G.server_start_time = time.time()
-        print(
-            f"Server shutdown scheduled in {G.server_shutdown_timeout} seconds "
-            f"({G.server_shutdown_timeout // 60} minutes)"
+        logger.info(
+            "Server shutdown scheduled in %d seconds (%d minutes)",
+            G.server_shutdown_timeout,
+            G.server_shutdown_timeout // 60,
         )
         # Launch shutdown monitor thread
         shutdown_thread = Thread(target=check_server_shutdown, daemon=True)
@@ -996,7 +1043,7 @@ def main():
         ).start()
 
     protocol = "https" if ssl_context else "http"
-    print(f"PVE VDI Client running at {protocol}://{args.host}:{args.port}")
+    logger.info("PVE VDI Client running at %s://%s:%d", protocol, args.host, args.port)
     app.run(
         host=args.host,
         port=args.port,
