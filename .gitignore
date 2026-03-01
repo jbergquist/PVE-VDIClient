@@ -10,3 +10,6 @@ vdiclient.spec
 .env
 *.egg-info/
 instance/
+
+# Exclude LLM settings for projects
+.claude/
