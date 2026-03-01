@@ -26,11 +26,78 @@ PVE VDI Client **REQUIRES** a configuration file to function. The client searche
   - %APPDATA%\VDIClient\vdiclient.ini
   - %PROGRAMFILES%\VDIClient\vdiclient.ini
 - Linux
-  - ~/.config/VDIClient/vdiclient.ini
+  - $XDG_CONFIG_HOME/VDIClient/vdiclient.ini (defaults to ~/.config/VDIClient/vdiclient.ini)
   - /etc/vdiclient/vdiclient.ini
   - /usr/local/etc/vdiclient/vdiclient.ini
 
-Please refer to [vdiclient.ini.example](https://github.com/jbergquist/PVE-VDIClient/blob/main/vdiclient.ini.example) for all available config file options
+Refer to [vdiclient.ini.example](https://github.com/jbergquist/PVE-VDIClient/blob/main/vdiclient.ini.example)
+for a fully annotated reference. The sections and keys are described below.
+
+### `[General]`
+
+| Key | Description | Default |
+| --- | ----------- | ------- |
+| `title` | Title displayed to the user on all pages | `VDI Login` |
+| `theme` | UI theme name (legacy option, not used by Flask UI) | `LightBlue` |
+| `icon` | Path to program icon file | — |
+| `logo` | Path to logo image displayed on login and dashboard | — |
+| `kiosk` | Kiosk mode — prevents the user from closing the browser window | `False` |
+| `viewer_kiosk` | Pass `--kiosk` to virt-viewer when `kiosk = True` | `True` |
+| `fullscreen` | Launch virt-viewer in fullscreen (ignored when kiosk = True) | `True` |
+| `window_width` | Override browser window width in pixels | — |
+| `window_height` | Override browser window height in pixels | — |
+| `inidebug` | Log the SPICE .ini file to the console before launching virt-viewer | `False` |
+| `guest_type` | VM types to show: `both`, `lxc`, or `qemu` | `both` |
+| `show_reset` | Show a Reset button on the VM dashboard | `False` |
+| `show_hibernate` | Show a Hibernate button on the VM dashboard | `False` |
+| `session_timeout` | Inactivity timeout in seconds before logging out; `0` disables | `0` |
+| `server_shutdown_timeout` | Shut down the server N seconds after startup; `0` disables | `0` |
+| `localhosttls` | Enable HTTPS with an auto-generated self-signed certificate | `False` |
+| `log_level` | Log level: `DEBUG`, `INFO`, `WARNING`, `ERROR` (lowest priority — overridden by `--log-level` CLI flag or `LOG_LEVEL` env var) | `INFO` |
+
+### `[Hosts.<Name>]`
+
+Define one section per Proxmox cluster. `<Name>` is shown to the user in the cluster
+selector (e.g. `[Hosts.PVE]` displays as **PVE**). Multiple sections can be defined.
+
+| Key | Description | Default |
+| --- | ----------- | ------- |
+| `hostpool` | JSON dict of cluster nodes: `{"IP/FQDN": PORT, ...}` | required |
+| `auth_backend` | Proxmox auth realm: `pve` or `pam` | `pve` |
+| `auth_totp` | Show TOTP 2FA entry field on login | `false` |
+| `tls_verify` | Verify TLS certificate when connecting to Proxmox | `false` |
+| `user` | Username for API token auto-login (e.g. `user@pve`) | — |
+| `token_name` | API token name | — |
+| `token_value` | API token value (secret) | — |
+| `pwresetcmd` | Full command to launch a password reset tool | — |
+| `auto_vmid` | Automatically connect to this VMID after login | — |
+| `knock_seq` | Port knock sequence as a JSON array (e.g. `[1234, 5678]`) | — |
+
+When `user`, `token_name`, and `token_value` are all set **and only one cluster is defined**,
+the client auto-authenticates on startup without prompting for credentials.
+
+### `[SpiceProxyRedirect]`
+
+Rewrites the SPICE proxy address returned by Proxmox. Useful when the Proxmox node is behind NAT or a reverse proxy.
+
+```ini
+[SpiceProxyRedirect]
+# pve1.example.com:3128 = <public-IP>:<public-port>
+pve1.example.com:3128 = 123.123.123.123:6000
+```
+
+Use `inidebug = True` in `[General]` to log the proxy address returned by Proxmox so you know what to rewrite.
+
+### `[AdditionalParameters]`
+
+Passes extra key-value options directly to `virt-viewer` / `remote-viewer`. See the
+[remote-viewer man page](https://www.mankier.com/1/remote-viewer) for available parameters.
+
+```ini
+[AdditionalParameters]
+enable-usbredir = true
+enable-usb-autoshare = true
+```
 
 If you encounter any issues feel free to submit an issue report.
 
@@ -46,25 +113,37 @@ Users that are accessing VDI instances need to have the following permissions as
 
 No command line options are required for default behavior. The following command line options are available:
 
-    usage: vdiclient.py [-h] [--list_themes] [--config_type {file,http}] [--config_location CONFIG_LOCATION]
-                        [--config_username CONFIG_USERNAME] [--config_password CONFIG_PASSWORD] [--ignore_ssl]
+```text
+usage: vdiclient.py [-h] [--config_type {file,http}] [--config_location CONFIG_LOCATION]
+                    [--config_username CONFIG_USERNAME] [--config_password CONFIG_PASSWORD]
+                    [--ignore_ssl] [--port PORT] [--host HOST] [--no-browser]
+                    [--log-level LOG_LEVEL]
 
-    Proxmox VDI Client
+Proxmox VDI Client
 
-    options:
-      -h, --help            show this help message and exit
-      --list_themes         List all available themes
-      --config_type {file,http}
-                            Select config type (default: file)
-      --config_location CONFIG_LOCATION
-                            Specify the config location (default: search for config file)
-      --config_username CONFIG_USERNAME
-                            HTTP basic authentication username (default: None)
-      --config_password CONFIG_PASSWORD
-                            HTTP basic authentication password (default: None)
-      --ignore_ssl          HTTPS ignore SSL certificate errors (default: False)
+options:
+  -h, --help            show this help message and exit
+  --config_type {file,http}
+                        Config source type (default: file)
+  --config_location CONFIG_LOCATION
+                        Config file path or HTTP URL
+  --config_username CONFIG_USERNAME
+                        HTTP basic auth username
+  --config_password CONFIG_PASSWORD
+                        HTTP basic auth password
+  --ignore_ssl          Ignore SSL certificate errors for config download
+  --port PORT           Web server port (default: 5000)
+  --host HOST           Web server bind address (default: 127.0.0.1)
+  --no-browser          Do not auto-open browser on start
+  --log-level LOG_LEVEL
+                        Log level: DEBUG, INFO, WARNING, ERROR (default: INFO)
+```
 
-If `--config_type http` is selected, pass the URL in the `--config_location` parameter
+If `--config_type http` is selected, pass the URL in the `--config_location` parameter.
+
+The `LOG_LEVEL` environment variable sets the log level as a fallback when `--log-level` is not
+provided (e.g. `LOG_LEVEL=DEBUG vdiclient.py`). The `log_level` key in the `[General]` config
+section is applied last, only if neither the CLI flag nor the environment variable is set.
 
 ## Installation
 
