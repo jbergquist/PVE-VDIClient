@@ -36,6 +36,7 @@ from configparser import ConfigParser
 from io import StringIO
 import time
 from threading import Thread
+import logging
 
 from vdiclient.platform import Platform
 from flask import (
@@ -53,6 +54,7 @@ import requests
 
 # Flask app with template/static paths in vdiclient package
 _package_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vdiclient")
+logger = logging.getLogger(__name__)
 app = Flask(
     __name__,
     template_folder=os.path.join(_package_dir, "templates"),
@@ -398,7 +400,8 @@ def vmaction(vmnode, vmid, vmtype, action="connect"):
         else:
             vmstatus = G.proxmox.nodes(vmnode).lxc(str(vmid)).status.get("current")
     except Exception as e:
-        return {"success": False, "error": f"Unable to get VM status: {e!r}"}
+        logger.exception("Unable to get VM status for %s on node %s", vmid, vmnode)
+        return {"success": False, "error": "Unable to get VM status"}
 
     if action == "reload":
         # Stop the VM
@@ -412,7 +415,8 @@ def vmaction(vmnode, vmid, vmtype, action="connect"):
                     G.proxmox.nodes(vmnode).lxc(str(vmid)).status.stop.post(timeout=28)
                 )
         except proxmoxer.core.ResourceException as e:
-            return {"success": False, "error": f"Unable to stop VM: {e!r}"}
+            logger.exception("Unable to stop VM %s on node %s", vmid, vmnode)
+            return {"success": False, "error": "Unable to stop VM"}
 
         # Wait for stop to complete
         stopped = False
@@ -437,7 +441,8 @@ def vmaction(vmnode, vmid, vmtype, action="connect"):
         else:
             vmstatus = G.proxmox.nodes(vmnode).lxc(str(vmid)).status.get("current")
     except Exception as e:
-        return {"success": False, "error": f"Unable to get VM status: {e!r}"}
+        logger.exception("Unable to refresh VM status for %s on node %s", vmid, vmnode)
+        return {"success": False, "error": "Unable to get VM status"}
 
     # Start VM if not running
     if vmstatus["status"] != "running":
@@ -453,7 +458,8 @@ def vmaction(vmnode, vmid, vmtype, action="connect"):
                     G.proxmox.nodes(vmnode).lxc(str(vmid)).status.start.post(timeout=28)
                 )
         except proxmoxer.core.ResourceException as e:
-            return {"success": False, "error": f"Unable to start VM: {e!r}"}
+            logger.exception("Unable to start VM %s on node %s", vmid, vmnode)
+            return {"success": False, "error": "Unable to start VM"}
 
         started = False
         for _ in range(30):
@@ -480,10 +486,11 @@ def vmaction(vmnode, vmid, vmtype, action="connect"):
         else:
             spiceconfig = G.proxmox.nodes(vmnode).lxc(str(vmid)).spiceproxy.post()
     except proxmoxer.core.ResourceException as e:
+        logger.exception("Unable to connect to VM %s on node %s via SPICE", vmid, vmnode)
         return {
             "success": False,
             "error": (
-                f"Unable to connect to VM {vmid}: {e!r}\n"
+                f"Unable to connect to VM {vmid}. "
                 "Is SPICE display configured?"
             ),
         }
