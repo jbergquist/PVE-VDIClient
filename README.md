@@ -1,7 +1,12 @@
 # PVE VDI Client
 
+[![GitHub release](https://img.shields.io/github/v/release/jbergquist/PVE-VDIClient)](https://github.com/jbergquist/PVE-VDIClient/releases/latest)
+[![GitHub downloads](https://img.shields.io/github/downloads/jbergquist/PVE-VDIClient/total)](https://github.com/jbergquist/PVE-VDIClient/releases)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
+
 This project's focus is to create a simple VDI client intended for mass deployment. This VDI client connects directly to Proxmox VE and allows users to connect (via Spice) to any VMs they have permission to access.
-[stefan-ffr/PVE-VDIClient](https://github.com/stefan-ffr/PVE-VDIClient) did an awesome addition and ported the gui to Flask so you just need a browser installed.
+
+**Credit**: [stefan-ffr/PVE-VDIClient](https://github.com/stefan-ffr/PVE-VDIClient) did an awesome addition and ported the GUI to Flask, so you just need a browser installed.
 
 ## Configuration File
 
@@ -51,9 +56,65 @@ No command line options are required for default behavior. The following command
 
 If `--config_type http` is selected, pass the URL in the `--config_location` parameter
 
-## Windows Installation
+## Installation
 
-You **MUST** install virt-viewer prior to using PVE VDI client, you may download it from the [official Virtual Machine Manager](https://virt-manager.org/download.html) site.
+**Prerequisites**: All platforms require [virt-viewer](https://www.spice-space.org/download.html) for VM console access.
+
+### Quick Install
+
+**Linux (Debian/Ubuntu)**:
+
+```bash
+wget https://github.com/jbergquist/PVE-VDIClient/releases/latest/download/pve-vdiclient_2.0.2-1_all.deb
+sudo dpkg -i pve-vdiclient_2.0.2-1_all.deb
+sudo apt install virt-viewer
+```
+
+**Linux (Fedora/RHEL)**:
+
+```bash
+sudo dnf install https://github.com/jbergquist/PVE-VDIClient/releases/latest/download/pve-vdiclient-2.0.2-1.noarch.rpm virt-viewer
+```
+
+**Linux (AppImage - Universal)**:
+
+```bash
+wget https://github.com/jbergquist/PVE-VDIClient/releases/latest/download/VDIClient-2.0.2-x86_64.AppImage
+chmod +x VDIClient-2.0.2-x86_64.AppImage
+./VDIClient-2.0.2-x86_64.AppImage
+```
+
+**Linux (Flatpak)**:
+
+```bash
+flatpak install https://github.com/jbergquist/PVE-VDIClient/releases/latest/download/org.proxmox.VDIClient.flatpak
+flatpak run org.proxmox.VDIClient
+```
+
+**Windows**:
+
+1. Install [virt-viewer](https://www.spice-space.org/download.html)
+2. Download and run [vdiclient-2.0.2-64.msi](https://github.com/jbergquist/PVE-VDIClient/releases/latest)
+
+**Python (pip)**:
+
+```bash
+pip install pve-vdiclient
+```
+
+For detailed installation instructions, see [docs/INSTALLATION.md](docs/INSTALLATION.md).
+
+## Building from Source
+
+See [docs/BUILDING.md](docs/BUILDING.md) for complete build instructions for all package formats.
+
+---
+
+## Legacy Installation Methods
+
+### Windows Installation (Manual)
+
+You **MUST** install virt-viewer prior to using PVE VDI client, you may download it from the [official SPICE website](https://www.spice-space.org/download.html).
 
 If you need to customize the installation, such as to sign the executable and MSI, you may download and install the [WIX toolset](https://wixtoolset.org/releases/) and use the build_vdiclient.bat file to build a new MSI.
 
@@ -61,7 +122,9 @@ you will need to download the latest 3.12 python release, and run the following 
 
     requirements.bat
 
-## Linux Installation
+### Linux Installation (Manual)
+
+**Note**: Use the [native packages](#installation) above for easier installation and updates.
 
 Run the following commands on a Debian/Ubuntu Linux system to install the appropriate prerequisites
 
@@ -73,7 +136,9 @@ Run the following commands on a Debian/Ubuntu Linux system to install the approp
     cp vdiclient.py /usr/local/bin
     chmod +x /usr/local/bin/vdiclient.py
 
-## Fedora/CentOS/RHEL Installation
+### Fedora/CentOS/RHEL Installation (Manual)
+
+**Note**: Use the [native packages](#installation) above for easier installation and updates.
 
 Run the following commands on a RHEL/Fedora Linux system to install the appropriate prerequisites
 
@@ -85,7 +150,9 @@ Run the following commands on a RHEL/Fedora Linux system to install the appropri
     cp vdiclient.py /usr/local/bin
     chmod +x /usr/local/bin/vdiclient.py
 
-## Build Debian/Ubuntu Linux Binary
+### Build Debian/Ubuntu Linux Binary (Legacy)
+
+**Note**: Use the [modern build scripts](docs/BUILDING.md) for current packaging methods.
 
 Run the following commands if you wish to build a binary on a Debian/Ubuntu Linux system
 
