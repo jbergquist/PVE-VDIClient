@@ -1,0 +1,30 @@
+# Include documentation
+include README.md
+include LICENSE
+include requirements.txt
+
+# Include config examples
+include vdiclient.ini.example
+
+# Include vdiclient.py (main script for backwards compatibility)
+include vdiclient.py
+
+# Include package data
+recursive-include vdiclient/templates *.html
+recursive-include vdiclient/static *.css *.js *.png *.ico
+
+# Exclude development and build artifacts
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude *.so
+global-exclude .DS_Store
+exclude .gitignore
+exclude .flake8
+exclude .markdownlint.jsonc
+
+# Exclude build scripts and packaging
+exclude build_vdiclient.bat
+exclude requirements.bat
+exclude requirements.sh
+recursive-exclude dist *
+recursive-exclude screenshots *

@@ -32,7 +32,13 @@ from flask import (
 import proxmoxer
 import requests
 
-app = Flask(__name__)
+# Flask app with template/static paths in vdiclient package
+_package_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vdiclient")
+app = Flask(
+    __name__,
+    template_folder=os.path.join(_package_dir, "templates"),
+    static_folder=os.path.join(_package_dir, "static"),
+)
 app.secret_key = os.urandom(32)
 
 
