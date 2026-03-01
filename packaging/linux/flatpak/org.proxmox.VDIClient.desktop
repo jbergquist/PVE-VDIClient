@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=PVE VDI Client
+GenericName=Proxmox VDI Client
+Comment=Web-based client for Proxmox VE Virtual Desktop Infrastructure
+Icon=org.proxmox.VDIClient
+Exec=vdiclient
+Terminal=false
+Categories=System;RemoteAccess;Network;
+Keywords=proxmox;vdi;spice;virtualization;remote;desktop;
+StartupNotify=true
+StartupWMClass=vdiclient

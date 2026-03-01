@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.proxmox.VDIClient</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>Apache-2.0</project_license>
+  <name>PVE VDI Client</name>
+  <summary>Web-based client for Proxmox VE Virtual Desktop Infrastructure</summary>
+
+  <description>
+    <p>
+      PVE VDI Client provides a modern web interface for accessing virtual
+      desktops in Proxmox VE environments. It supports the SPICE protocol
+      for remote desktop access and integrates with virt-viewer for launching
+      VM console sessions.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Web-based login and VM selection interface</li>
+      <li>SPICE protocol support for virtual desktops</li>
+      <li>Integration with Proxmox VE authentication</li>
+      <li>Support for multiple Proxmox clusters</li>
+      <li>Session timeout and automatic server shutdown</li>
+      <li>Compatible with Proxmox VE 7, 8, and 9</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">org.proxmox.VDIClient.desktop</launchable>
+
+  <url type="homepage">https://github.com/jbergquist/PVE-VDIClient</url>
+  <url type="bugtracker">https://github.com/jbergquist/PVE-VDIClient/issues</url>
+  <url type="vcs-browser">https://github.com/jbergquist/PVE-VDIClient</url>
+
+  <developer_name>jbergquist</developer_name>
+
+  <categories>
+    <category>System</category>
+    <category>RemoteAccess</category>
+    <category>Network</category>
+  </categories>
+
+  <keywords>
+    <keyword>proxmox</keyword>
+    <keyword>vdi</keyword>
+    <keyword>spice</keyword>
+    <keyword>virtualization</keyword>
+    <keyword>remote</keyword>
+    <keyword>desktop</keyword>
+  </keywords>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>Login screen</caption>
+    </screenshot>
+  </screenshots>
+
+  <content_rating type="oars-1.1" />
+
+  <releases>
+    <release version="2.0.2" date="2026-03-01">
+      <description>
+        <p>Initial Flatpak release</p>
+        <ul>
+          <li>Platform abstraction layer for cross-platform support</li>
+          <li>Security improvements (eliminated shell injection risks)</li>
+          <li>XDG Base Directory specification compliance</li>
+          <li>Compatible with Proxmox VE 7, 8, and 9</li>
+        </ul>
+      </description>
+    </release>
+  </releases>
+
+  <requires>
+    <display_length compare="ge">768</display_length>
+  </requires>
+
+  <recommends>
+    <control>pointing</control>
+    <control>keyboard</control>
+    <internet>always</internet>
+  </recommends>
+</component>
