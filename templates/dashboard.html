@@ -46,18 +46,18 @@
     <!-- Server Shutdown Warning Banner -->
     <div id="server-shutdown-banner" class="hidden">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3">
-            <div class="backdrop-blur-xl bg-amber-500/15 border border-amber-500/30 rounded-lg px-4 py-3 flex items-center justify-between gap-3">
+            <div class="backdrop-blur-xl bg-white/[0.07] border border-white/[0.12] rounded-lg px-4 py-3 flex items-center justify-between gap-3">
                 <div class="flex items-center gap-3">
-                    <svg class="w-5 h-5 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5 text-pve-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                              d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z"/>
                     </svg>
                     <div>
-                        <p class="text-sm font-semibold text-amber-200">Server Maintenance Scheduled</p>
-                        <p class="text-xs text-amber-300/80">Server shuts down in <span id="server-countdown-text" class="font-mono font-bold">--:--</span></p>
+                        <p class="text-sm font-semibold text-white">Server Info</p>
+                        <p class="text-xs text-slate-300">Server shuts down in <span id="server-countdown-text" class="font-mono font-bold text-white">--:--</span></p>
                     </div>
                 </div>
-                <button onclick="dismissServerBanner()" class="text-amber-300 hover:text-amber-100 transition-colors p-1">
+                <button onclick="dismissServerBanner()" class="text-slate-400 hover:text-slate-200 transition-colors p-1">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
