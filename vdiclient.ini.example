@@ -23,6 +23,14 @@ guest_type = both
 #window_width = 800
 #window_height = 600
 
+# Session inactivity timeout in seconds (0 = disabled)
+# User logged out after this period of inactivity
+session_timeout = 0
+
+# Server shutdown timeout in seconds (0 = disabled)
+# Server shuts down after this duration from startup
+server_shutdown_timeout = 0
+
 # PVE-VDIClient supports multiple clusters. Define them with sections that start with Hosts. followed by the name
 # you wish to display to your end users. This example is Hosts.PVE which would display PVE to your users
 [Hosts.PVE]

@@ -24,6 +24,14 @@
                     <span id="refresh-indicator" class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse-dot"></span>
                     Live
                 </span>
+                <!-- Session Timeout Countdown -->
+                <div id="session-countdown-container" class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.06] border border-white/[0.1]">
+                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span id="session-countdown-text" class="text-sm font-mono text-slate-300">--:--</span>
+                </div>
                 {% if not kiosk %}
                 <a href="{{ url_for('logout') }}"
                    class="px-4 py-1.5 bg-white/[0.06] hover:bg-white/[0.12] text-slate-300
@@ -34,6 +42,29 @@
             </div>
         </div>
     </header>
+
+    <!-- Server Shutdown Warning Banner -->
+    <div id="server-shutdown-banner" class="hidden">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3">
+            <div class="backdrop-blur-xl bg-white/[0.07] border border-white/[0.12] rounded-lg px-4 py-3 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <svg class="w-5 h-5 text-pve-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z"/>
+                    </svg>
+                    <div>
+                        <p class="text-sm font-semibold text-white">Server Info</p>
+                        <p class="text-xs text-slate-300">Server shuts down in <span id="server-countdown-text" class="font-mono font-bold text-white">--:--</span></p>
+                    </div>
+                </div>
+                <button onclick="dismissServerBanner()" class="text-slate-400 hover:text-slate-200 transition-colors p-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Content -->
     <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
@@ -156,8 +187,145 @@
     let lastVMCount = {{ vm_count }};
     let refreshInterval;
 
+    // Countdown state
+    let sessionTimeoutEnabled = false;
+    let sessionRemainingSeconds = 0;
+    let serverShutdownEnabled = false;
+    let serverRemainingSeconds = 0;
+    let serverBannerDismissed = false;
+    let countdownInterval;
+
     // Start auto-refresh
     refreshInterval = setInterval(refreshVMs, 5000);
+
+    // Initialize countdowns
+    async function initializeCountdowns() {
+        try {
+            // Fetch session status
+            const sessionRes = await fetch('/api/session-status');
+            if (sessionRes.ok) {
+                const sessionData = await sessionRes.json();
+                sessionTimeoutEnabled = sessionData.session_timeout_enabled;
+                if (sessionTimeoutEnabled) {
+                    sessionRemainingSeconds = sessionData.session_remaining_seconds;
+                    document.getElementById('session-countdown-container').classList.remove('hidden');
+                }
+            }
+
+            // Fetch server status
+            const serverRes = await fetch('/api/server-status');
+            if (serverRes.ok) {
+                const serverData = await serverRes.json();
+                serverShutdownEnabled = serverData.server_shutdown_enabled;
+                if (serverShutdownEnabled) {
+                    serverRemainingSeconds = serverData.server_remaining_seconds;
+                    if (!serverBannerDismissed && serverRemainingSeconds <= 600) {
+                        document.getElementById('server-shutdown-banner').classList.remove('hidden');
+                    }
+                }
+            }
+
+            // Start countdown update interval
+            if (sessionTimeoutEnabled || serverShutdownEnabled) {
+                updateCountdowns();
+                countdownInterval = setInterval(updateCountdowns, 1000);
+            }
+        } catch (e) {
+            console.error('Failed to initialize countdowns:', e);
+        }
+    }
+
+    function updateCountdowns() {
+        // Update session countdown
+        if (sessionTimeoutEnabled && sessionRemainingSeconds > 0) {
+            sessionRemainingSeconds--;
+            updateSessionDisplay(sessionRemainingSeconds);
+
+            // Warnings
+            if (sessionRemainingSeconds === 300) {
+                showToast('Session expires in 5 minutes due to inactivity', 'warning');
+            } else if (sessionRemainingSeconds === 60) {
+                showToast('Session expires in 1 minute', 'warning');
+            } else if (sessionRemainingSeconds <= 0) {
+                showToast('Session expired', 'error');
+                setTimeout(() => { window.location.href = '/logout'; }, 2000);
+            }
+        }
+
+        // Update server countdown
+        if (serverShutdownEnabled && serverRemainingSeconds > 0) {
+            serverRemainingSeconds--;
+            updateServerDisplay(serverRemainingSeconds);
+
+            // Warnings
+            if (serverRemainingSeconds === 600) {
+                showToast('Server shuts down in 10 minutes', 'warning');
+                if (!serverBannerDismissed) {
+                    document.getElementById('server-shutdown-banner').classList.remove('hidden');
+                }
+            } else if (serverRemainingSeconds === 300) {
+                showToast('Server shuts down in 5 minutes', 'warning');
+            } else if (serverRemainingSeconds === 60) {
+                showToast('Server shuts down in 1 minute', 'error');
+            } else if (serverRemainingSeconds <= 0) {
+                showToast('Server shutting down...', 'error');
+                clearInterval(refreshInterval);
+                clearInterval(countdownInterval);
+            }
+        }
+    }
+
+    function updateSessionDisplay(seconds) {
+        const container = document.getElementById('session-countdown-container');
+        const text = document.getElementById('session-countdown-text');
+
+        if (seconds <= 0) {
+            text.textContent = '00:00';
+            return;
+        }
+
+        const minutes = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        text.textContent = `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+        // Visual warnings
+        container.classList.remove('countdown-warning', 'countdown-critical', 'bg-white/[0.06]', 'border-white/[0.1]');
+
+        if (seconds <= 60) {
+            container.classList.add('countdown-critical', 'border-red-500/30');
+            text.classList.remove('text-slate-300', 'text-amber-300');
+            text.classList.add('text-red-300');
+        } else if (seconds <= 300) {
+            container.classList.add('countdown-warning', 'border-amber-500/30');
+            text.classList.remove('text-slate-300', 'text-red-300');
+            text.classList.add('text-amber-300');
+        } else {
+            container.classList.add('bg-white/[0.06]', 'border-white/[0.1]');
+            text.classList.remove('text-amber-300', 'text-red-300');
+            text.classList.add('text-slate-300');
+        }
+    }
+
+    function updateServerDisplay(seconds) {
+        const text = document.getElementById('server-countdown-text');
+
+        if (seconds <= 0) {
+            text.textContent = '00:00';
+            return;
+        }
+
+        const minutes = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        text.textContent = `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function dismissServerBanner() {
+        serverBannerDismissed = true;
+        document.getElementById('server-shutdown-banner').classList.add('hidden');
+    }
+
+    // Initialize on page load
+    initializeCountdowns();
 
     async function refreshVMs() {
         try {
@@ -220,6 +388,29 @@
                     connectBtn.disabled = vm.disabled;
                 }
             });
+
+            // Sync countdown timers with server (prevent drift)
+            try {
+                if (sessionTimeoutEnabled) {
+                    const sessionRes = await fetch('/api/session-status');
+                    if (sessionRes.ok) {
+                        const sessionData = await sessionRes.json();
+                        sessionRemainingSeconds = sessionData.session_remaining_seconds;
+                    } else if (sessionRes.status === 401) {
+                        window.location.href = '/login';
+                    }
+                }
+
+                if (serverShutdownEnabled) {
+                    const serverRes = await fetch('/api/server-status');
+                    if (serverRes.ok) {
+                        const serverData = await serverRes.json();
+                        serverRemainingSeconds = serverData.server_remaining_seconds;
+                    }
+                }
+            } catch (e) {
+                console.error('Countdown sync failed:', e);
+            }
         } catch (e) {
             console.error('VM refresh failed:', e);
         }
@@ -280,6 +471,9 @@
         } else if (type === 'error') {
             colors = 'bg-red-500/90 border-red-400/30';
             icon = '<svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>';
+        } else if (type === 'warning') {
+            colors = 'bg-amber-500/90 border-amber-400/30';
+            icon = '<svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>';
         } else {
             colors = 'bg-pve-500/90 border-pve-400/30';
             icon = '<svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z"/></svg>';
@@ -297,5 +491,31 @@
             setTimeout(() => toast.remove(), 300);
         }, 4000);
     }
+
+    // Sync timers when tab becomes visible again
+    document.addEventListener('visibilitychange', async () => {
+        if (!document.hidden && (sessionTimeoutEnabled || serverShutdownEnabled)) {
+            try {
+                if (sessionTimeoutEnabled) {
+                    const res = await fetch('/api/session-status');
+                    if (res.ok) {
+                        const data = await res.json();
+                        sessionRemainingSeconds = data.session_remaining_seconds;
+                        updateSessionDisplay(sessionRemainingSeconds);
+                    }
+                }
+                if (serverShutdownEnabled) {
+                    const res = await fetch('/api/server-status');
+                    if (res.ok) {
+                        const data = await res.json();
+                        serverRemainingSeconds = data.server_remaining_seconds;
+                        updateServerDisplay(serverRemainingSeconds);
+                    }
+                }
+            } catch (e) {
+                console.error('Visibility sync failed:', e);
+            }
+        }
+    });
 </script>
 {% endblock %}

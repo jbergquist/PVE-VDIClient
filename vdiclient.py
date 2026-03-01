@@ -15,7 +15,7 @@ import webbrowser
 import urllib3
 from configparser import ConfigParser
 from io import StringIO
-from time import sleep
+import time
 from threading import Thread
 
 from flask import (
@@ -51,6 +51,10 @@ class G:
     width = None
     height = None
     authenticated = False
+    session_timeout = 0  # seconds, 0 = disabled
+    server_shutdown_timeout = 0  # seconds, 0 = disabled
+    last_activity_time = None  # timestamp of last user activity
+    server_start_time = None  # timestamp when server started
 
 
 def loadconfig(config_location=None, config_type='file',
@@ -139,6 +143,18 @@ def loadconfig(config_location=None, config_type='file',
         G.width = general.getint('window_width')
     if 'window_height' in general:
         G.height = general.getint('window_height')
+
+    if 'session_timeout' in general:
+        G.session_timeout = general.getint('session_timeout')
+        if G.session_timeout < 0:
+            print('Warning: session_timeout cannot be negative, setting to 0')
+            G.session_timeout = 0
+
+    if 'server_shutdown_timeout' in general:
+        G.server_shutdown_timeout = general.getint('server_shutdown_timeout')
+        if G.server_shutdown_timeout < 0:
+            print('Warning: server_shutdown_timeout cannot be negative, setting to 0')
+            G.server_shutdown_timeout = 0
 
     if 'Authentication' in config:  # Legacy configuration
         G.hosts['DEFAULT'] = _default_hostset()
@@ -389,7 +405,7 @@ def vmaction(vmnode, vmid, vmtype, action='connect'):
                     return {'success': False, 'error': 'Unable to stop VM'}
                 stopped = True
                 break
-            sleep(1)
+            time.sleep(1)
         if not stopped:
             return {'success': False, 'error': 'Timeout waiting for VM to stop'}
 
@@ -423,7 +439,7 @@ def vmaction(vmnode, vmid, vmtype, action='connect'):
                     return {'success': False, 'error': 'Unable to start VM'}
                 started = True
                 break
-            sleep(1)
+            time.sleep(1)
         if not started:
             return {'success': False, 'error': 'Timeout waiting for VM to start'}
 
@@ -488,6 +504,28 @@ def vmaction(vmnode, vmid, vmtype, action='connect'):
 # Flask Routes
 # ---------------------------------------------------------------------------
 
+@app.before_request
+def update_activity_and_check_timeout():
+    """Update activity timestamp and check for session/server timeout."""
+    # Update activity timestamp for authenticated users
+    if G.authenticated and G.session_timeout > 0:
+        # Check if session expired
+        if G.last_activity_time:
+            elapsed = time.time() - G.last_activity_time
+            if elapsed >= G.session_timeout:
+                # Session expired
+                G.authenticated = False
+                G.proxmox = None
+                G.last_activity_time = None
+                if request.path.startswith('/api/'):
+                    return jsonify({'error': 'Session expired'}), 401
+                flash('Your session has expired due to inactivity.', 'warning')
+                return redirect(url_for('login'))
+
+        # Update activity timestamp for this request
+        G.last_activity_time = time.time()
+
+
 @app.route('/')
 def index():
     if G.authenticated:
@@ -519,6 +557,8 @@ def login():
             flash('Invalid username and/or password, please try again!', 'error')
         else:
             G.authenticated = True
+            if G.session_timeout > 0:
+                G.last_activity_time = time.time()
             if hostset.get('auto_vmid'):
                 vms = getvms()
                 for vm in vms:
@@ -570,6 +610,40 @@ def api_vms():
     return jsonify(process_vms(getvms()))
 
 
+@app.route('/api/session-status')
+def api_session_status():
+    """Return session timeout status."""
+    if not G.authenticated:
+        return jsonify({'authenticated': False}), 401
+
+    response = {
+        'authenticated': True,
+        'session_timeout_enabled': G.session_timeout > 0
+    }
+
+    if G.session_timeout > 0 and G.last_activity_time:
+        elapsed = time.time() - G.last_activity_time
+        remaining = max(0, G.session_timeout - elapsed)
+        response['session_remaining_seconds'] = int(remaining)
+
+    return jsonify(response)
+
+
+@app.route('/api/server-status')
+def api_server_status():
+    """Return server shutdown status (no auth required)."""
+    response = {
+        'server_shutdown_enabled': G.server_shutdown_timeout > 0
+    }
+
+    if G.server_shutdown_timeout > 0 and G.server_start_time:
+        elapsed = time.time() - G.server_start_time
+        remaining = max(0, G.server_shutdown_timeout - elapsed)
+        response['server_remaining_seconds'] = int(remaining)
+
+    return jsonify(response)
+
+
 @app.route('/vm/<int:vmid>/connect', methods=['POST'])
 def connect_vm(vmid):
     if not G.authenticated:
@@ -608,6 +682,7 @@ def switch_group():
 def logout():
     G.authenticated = False
     G.proxmox = None
+    G.last_activity_time = None
     return redirect(url_for('login'))
 
 
@@ -633,6 +708,17 @@ def password_reset():
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
+def check_server_shutdown():
+    """Background thread that monitors server shutdown timeout."""
+    while True:
+        if G.server_shutdown_timeout > 0 and G.server_start_time:
+            elapsed = time.time() - G.server_start_time
+            if elapsed >= G.server_shutdown_timeout:
+                print('Server shutdown timeout reached. Shutting down...')
+                os._exit(0)
+        time.sleep(5)  # Check every 5 seconds
+
 
 def main():
     parser = argparse.ArgumentParser(description='Proxmox VDI Client')
@@ -673,13 +759,24 @@ def main():
         connected, authenticated, error = pveauth(hostset['user'])
         if connected and authenticated:
             G.authenticated = True
+            if G.session_timeout > 0:
+                G.last_activity_time = time.time()
             print('Authentication successful.')
         else:
             print(f'Auto-authentication failed: {error}')
 
+    # Set server start time for shutdown countdown
+    if G.server_shutdown_timeout > 0:
+        G.server_start_time = time.time()
+        print(f'Server shutdown scheduled in {G.server_shutdown_timeout} seconds '
+              f'({G.server_shutdown_timeout // 60} minutes)')
+        # Launch shutdown monitor thread
+        shutdown_thread = Thread(target=check_server_shutdown, daemon=True)
+        shutdown_thread.start()
+
     if not args.no_browser:
         Thread(
-            target=lambda: (sleep(1.5), webbrowser.open(f'http://{args.host}:{args.port}')),
+            target=lambda: (time.sleep(1.5), webbrowser.open(f'http://{args.host}:{args.port}')),
             daemon=True
         ).start()
 

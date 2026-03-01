@@ -47,6 +47,24 @@
         }
         .animate-slide-up { animation: slide-up 0.4s ease-out; }
 
+        @keyframes countdown-warning {
+            0%, 100% { background-color: rgba(251, 191, 36, 0.15); }
+            50% { background-color: rgba(251, 191, 36, 0.25); }
+        }
+
+        @keyframes countdown-critical {
+            0%, 100% { background-color: rgba(239, 68, 68, 0.15); }
+            50% { background-color: rgba(239, 68, 68, 0.3); }
+        }
+
+        .countdown-warning {
+            animation: countdown-warning 2s ease-in-out infinite;
+        }
+
+        .countdown-critical {
+            animation: countdown-critical 1s ease-in-out infinite;
+        }
+
         select option {
             background-color: #1e293b;
             color: #e2e8f0;
