@@ -1,0 +1,21 @@
+#!/bin/bash
+# AppRun entry point for PVE VDI Client AppImage
+
+set -e
+
+# Get the directory where the AppImage is mounted
+APPDIR="$(dirname "$(readlink -f "$0")")"
+
+# Set up Python path
+export PYTHONPATH="$APPDIR/usr/lib/python3.12/site-packages:$PYTHONPATH"
+export PYTHONHOME="$APPDIR/usr"
+export PATH="$APPDIR/usr/bin:$PATH"
+
+# Set library path
+export LD_LIBRARY_PATH="$APPDIR/usr/lib:$LD_LIBRARY_PATH"
+
+# Change to a safe working directory
+cd "$HOME" || cd /tmp
+
+# Run vdiclient
+exec "$APPDIR/usr/bin/python3" -m vdiclient "$@"
