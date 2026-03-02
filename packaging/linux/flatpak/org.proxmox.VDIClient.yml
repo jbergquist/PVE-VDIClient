@@ -28,59 +28,67 @@ finish-args:
   - --socket=session-bus
 
 modules:
-  # Python dependencies
+  # Python dependencies (all pre-built wheels — no build backend required)
   - name: python-dependencies
     buildsystem: simple
     build-commands:
       - pip3 install --no-index --find-links="file://${PWD}" --prefix=${FLATPAK_DEST}
-        flit_core
-      - pip3 install --no-index --find-links="file://${PWD}" --prefix=${FLATPAK_DEST}
-        --no-build-isolation flask requests urllib3 proxmoxer pystray Pillow
+        flask requests urllib3 proxmoxer pystray Pillow
     sources:
+      # Flask and dependencies
       - type: file
-        url: https://files.pythonhosted.org/packages/f2/65/b6ba90634c984a4fcc02c7e3afe523fef500c4980fec67cc27536ee50acf/flit_core-3.12.0-py3-none-any.whl
-        sha256: e7a0304069ea895172e3c7bb703292e992c5d1555dd1233ab7b5621b5b69e62c
+        url: https://files.pythonhosted.org/packages/61/80/ffe1da13ad9300f87c93af113edd0638c75138c42a0994becfacac078c06/flask-3.0.3-py3-none-any.whl
+        sha256: 34e815dfaa43340d1d15a5c3a02b8476004037eb4840b34910c6e21679d288f3
 
       - type: file
-        url: https://files.pythonhosted.org/packages/source/F/Flask/flask-3.0.3.tar.gz
-        sha256: ceb27b0af3823ea2737928a4d99d125a06175b8512c445cbd9a9ce200ef76842
+        url: https://files.pythonhosted.org/packages/9d/6e/e792999e816d19d7fcbfa94c730936750036d65656a76a5a688b57a656c4/werkzeug-3.0.3-py3-none-any.whl
+        sha256: fc9645dc43e03e4d630d23143a04a7f947a9a3b5727cd535fdfe155a17cc48c8
 
       - type: file
-        url: https://files.pythonhosted.org/packages/source/r/requests/requests-2.32.3.tar.gz
-        sha256: 55365417734eb18255590a9ff9eb97e9e1da868d4ccd6402399eaf68af20a760
+        url: https://files.pythonhosted.org/packages/31/80/3a54838c3fb461f6fec263ebf3a3a41771bd05190238de3486aae8540c36/jinja2-3.1.4-py3-none-any.whl
+        sha256: bc5dd2abb727a5319567b7a813e6a2e7318c39f4f487cfe6c89c6f9c7d25197d
 
       - type: file
-        url: https://files.pythonhosted.org/packages/source/u/urllib3/urllib3-2.2.2.tar.gz
-        sha256: dd505485549a7a552833da5e6063639d0d177c04f23bc3864e41e5dc5f612168
+        url: https://files.pythonhosted.org/packages/a9/21/9b05698b46f218fc0e118e1f8168395c65c8a2c750ae2bab54fc4bd4e0e8/markupsafe-3.0.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
+        sha256: ccfcd093f13f0f0b7fdd0f198b90053bf7b2f02a3927a30e63f3ccc9df56b676
 
       - type: file
-        url: https://files.pythonhosted.org/packages/source/p/proxmoxer/proxmoxer-2.0.1.tar.gz
-        sha256: 088923f1a81ee27631e88314c609bfe22b33d8a41271b5f02e86f996f837fe31
-
-      # Flask dependencies
-      - type: file
-        url: https://files.pythonhosted.org/packages/source/W/Werkzeug/werkzeug-3.0.3.tar.gz
-        sha256: 097e5bfda9f0aba8da6b8545146def481d06aa7d3266e7448e2cccf67dd8bd18
+        url: https://files.pythonhosted.org/packages/00/2e/d53fa4befbf2cfa713304affc7ca780ce4fc1fd8710527771b58311a3229/click-8.1.7-py3-none-any.whl
+        sha256: ae74fb96c20a0277a1d615f1e4d73c8414f5a98db8b799a7931d1582f3390c28
 
       - type: file
-        url: https://files.pythonhosted.org/packages/source/J/Jinja2/jinja2-3.1.4.tar.gz
-        sha256: 4a3aee7acbbe7303aede8e9648d13b8bf88a429282aa6122a993f0ac800cb369
+        url: https://files.pythonhosted.org/packages/04/96/92447566d16df59b2a776c0fb82dbc4d9e07cd95062562af01e408583fc4/itsdangerous-2.2.0-py3-none-any.whl
+        sha256: c6242fc49e35958c8b15141343aa660db5fc54d4f13a1db01a3f5891b98700ef
 
       - type: file
-        url: https://files.pythonhosted.org/packages/source/c/click/click-8.1.7.tar.gz
-        sha256: ca9853ad459e787e2192211578cc907e7594e294c7ccc834310722b41b9ca6de
+        url: https://files.pythonhosted.org/packages/bb/2a/10164ed1f31196a2f7f3799368a821765c62851ead0e630ab52b8e14b4d0/blinker-1.8.2-py3-none-any.whl
+        sha256: 1779309f71bf239144b9399d06ae925637cf6634cf6bd131104184531bf67c01
+
+      # requests and dependencies
+      - type: file
+        url: https://files.pythonhosted.org/packages/f9/9b/335f9764261e915ed497fcdeb11df5dfd6f7bf257d4a6a2a686d80da4d54/requests-2.32.3-py3-none-any.whl
+        sha256: 70761cfe03c773ceb22aa2f671b4757976145175cdfca038c02654d061d6dcc6
 
       - type: file
-        url: https://files.pythonhosted.org/packages/source/i/itsdangerous/itsdangerous-2.2.0.tar.gz
-        sha256: e0050c0b7da1eea53ffaf149c0cfbb5c6e2e2b69c4bef22c81fa6eb73e5f6173
+        url: https://files.pythonhosted.org/packages/ca/1c/89ffc63a9605b583d5df2be791a27bc1a42b7c32bab68d3c8f2f73a98cd4/urllib3-2.2.2-py3-none-any.whl
+        sha256: a448b2f64d686155468037e1ace9f2d2199776e17f0a46610480d311f73e3472
 
       - type: file
-        url: https://files.pythonhosted.org/packages/source/b/blinker/blinker-1.8.2.tar.gz
-        sha256: 8f77b09d3bf7c795e969e9486f39c2c5e9c39d4ee07424be2bc594ece9642d83
+        url: https://files.pythonhosted.org/packages/1c/d5/c84e1a17bf61d4df64ca866a1c9a913874b4e9bdc131ec689a0ad013fb36/certifi-2024.7.4-py3-none-any.whl
+        sha256: c198e21b1289c2ab85ee4e67bb4b4ef3ead0892059901a8d5b622f24a1101e90
 
       - type: file
-        url: https://files.pythonhosted.org/packages/source/M/MarkupSafe/MarkupSafe-2.1.5.tar.gz
-        sha256: d283d37a890ba4c1ae73ffadf8046435c76e7bc2247bbb63c00bd1a709c6544b
+        url: https://files.pythonhosted.org/packages/28/76/e6222113b83e3622caa4bb41032d0b1bf785250607392e1b778aca0b8a7d/charset_normalizer-3.3.2-py3-none-any.whl
+        sha256: 3e4d1f6587322d2788836a99c69062fbb091331ec940e02d12d179c1d53e25fc
+
+      - type: file
+        url: https://files.pythonhosted.org/packages/e5/3e/741d8c82801c347547f8a2a06aa57dbb1992be9e948df2ea0eda2c8b79e8/idna-3.7-py3-none-any.whl
+        sha256: 82fee1fc78add43492d3a1898bfa6d8a904cc97d8427f683ed8e798d07761aa0
+
+      # proxmoxer
+      - type: file
+        url: https://files.pythonhosted.org/packages/74/4c/b1e2413470a23de75f01259256279f859a56da435b7d5cf452707806f3f0/proxmoxer-2.0.1-py3-none-any.whl
+        sha256: badb3095507e486b76dfda75177545dd85da608a3aef8590d362901253f10576
 
       # tray dependencies
       - type: file
@@ -88,21 +96,8 @@ modules:
         sha256: a0c2229d02cf87207297c22d86ffc57c86c227517b038c0d3c59df79295ac617
 
       - type: file
-        url: https://files.pythonhosted.org/packages/1f/42/5c74462b4fd957fcd7b13b04fb3205ff8349236ea74c7c375766d6c82288/pillow-12.1.1.tar.gz
-        sha256: 9ad8fa5937ab05218e2b6a4cff30295ad35afd2f83ac592e68c0d871bb0fdbc4
-
-      # requests dependencies
-      - type: file
-        url: https://files.pythonhosted.org/packages/source/c/certifi/certifi-2024.7.4.tar.gz
-        sha256: 5a1e7645bc0ec61a09e26c36f6106dd4cf40c6db3a1fb6352b0244e7fb057c7b
-
-      - type: file
-        url: https://files.pythonhosted.org/packages/63/09/c1bc53dab74b1816a00d8d030de5bf98f724c52c1635e07681d312f20be8/charset-normalizer-3.3.2.tar.gz
-        sha256: f30c3cb33b24454a82faecaf01b19c18562b1e89558fb6c56de4d9118a032fd5
-
-      - type: file
-        url: https://files.pythonhosted.org/packages/source/i/idna/idna-3.7.tar.gz
-        sha256: 028ff3aadf0609c1fd278d8ea3089299412a7a8b9bd005dd08b9f8285bcb5cfc
+        url: https://files.pythonhosted.org/packages/71/24/538bff45bde96535d7d998c6fed1a751c75ac7c53c37c90dc2601b243893/pillow-12.1.1-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
+        sha256: 47b94983da0c642de92ced1702c5b6c292a84bd3a8e1d1702ff923f183594717
 
   # PVE VDI Client
   - name: pve-vdiclient
