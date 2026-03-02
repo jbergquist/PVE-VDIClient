@@ -94,6 +94,15 @@ class G:
     ssl_cert_path = None  # Path to generated certificate
     ssl_key_path = None  # Path to generated private key
     log_level = None  # Log level from ini file (overridden by CLI/env)
+    server_url = 'http://127.0.0.1:5000'  # set in main() after args parsed
+    tray_icon = None                        # pystray.Icon reference
+    tray_enabled = False
+    # stored for config reload from tray menu:
+    _config_location = None
+    _config_type = 'file'
+    _config_username = None
+    _config_password = None
+    _ssl_verify = True
 
 
 def loadconfig(
@@ -795,11 +804,11 @@ def is_certificate_valid(cert_path):
 
         # Check not expired
         now = datetime.now(UTC)
-        if cert.not_valid_after < now:
+        if cert.not_valid_after_utc < now:
             return False  # Expired
 
         # Check not used before validity period
-        if cert.not_valid_before > now:
+        if cert.not_valid_before_utc > now:
             return False  # Not yet valid
 
         return True
@@ -1032,25 +1041,45 @@ def main():
         shutdown_thread = Thread(target=check_server_shutdown, daemon=True)
         shutdown_thread.start()
 
+    # Compute protocol first so G.server_url is correct for tray and browser
+    protocol = "https" if G.localhosttls and ssl_context else "http"
+    G.server_url = f'{protocol}://{args.host}:{args.port}'
+    G._config_location = args.config_location
+    G._config_type = args.config_type
+    G._config_username = args.config_username
+    G._config_password = args.config_password
+    G._ssl_verify = args.ignore_ssl
+
+    # Flask moves to daemon thread; tray icon will own the main thread
+    flask_thread = Thread(
+        target=lambda: app.run(
+            host=args.host,
+            port=args.port,
+            debug=False,
+            threaded=True,
+            ssl_context=ssl_context,
+        ),
+        daemon=True,
+    )
+    flask_thread.start()
+
     if not args.no_browser:
-        protocol = "https" if G.localhosttls and ssl_context else "http"
         Thread(
             target=lambda: (
                 time.sleep(1.5),
-                webbrowser.open(f"{protocol}://{args.host}:{args.port}"),
+                webbrowser.open(G.server_url),
             ),
             daemon=True,
         ).start()
 
-    protocol = "https" if ssl_context else "http"
-    logger.info("PVE VDI Client running at %s://%s:%d", protocol, args.host, args.port)
-    app.run(
-        host=args.host,
-        port=args.port,
-        debug=False,
-        threaded=True,
-        ssl_context=ssl_context,
-    )
+    logger.info("PVE VDI Client running at %s", G.server_url)
+
+    # Tray icon owns the main thread (blocking)
+    try:
+        from tray import run_tray
+        run_tray(G.server_url)
+    except KeyboardInterrupt:
+        logger.info("Ctrl+C pressed, shutting down server gracefully")
     return 0
 
 

@@ -18,6 +18,8 @@ Requires:       python3-requests
 Requires:       python3-urllib3
 Requires:       virt-viewer
 Recommends:     python3-proxmoxer
+Recommends:     python3-gobject
+Recommends:     libayatana-appindicator
 
 %description
 PVE VDI Client provides a modern web interface for accessing virtual

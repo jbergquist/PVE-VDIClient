@@ -24,7 +24,9 @@ Depends: ${python3:Depends},
          python3-requests,
          python3-urllib3,
          virt-viewer
-Recommends: python3-proxmoxer
+Recommends: python3-proxmoxer,
+             python3-gi,
+             gir1.2-ayatanaappindicator3-0.1
 Description: Flask-based web client for Proxmox VE VDI
  PVE VDI Client provides a modern web interface for accessing virtual
  desktops in Proxmox VE environments. It supports SPICE protocol for
