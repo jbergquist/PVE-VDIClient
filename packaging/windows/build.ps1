@@ -58,13 +58,15 @@ if (-not (Get-Command candle -ErrorAction SilentlyContinue)) {
 }
 
 # Create MSI with WIX
+# createmsi.py must be run from the dist dir with a bare filename (no path separators)
 Write-Host "Creating MSI with WIX Toolset..." -ForegroundColor Green
 Push-Location $DistDir
 try {
-    $VdclientJson = Join-Path $WixDir "vdiclient.json"
+    Copy-Item (Join-Path $WixDir "vdiclient.json") "vdiclient.json" -Force
+    Copy-Item (Join-Path $WixDir "License.rtf")    "License.rtf"    -Force
     $CreateMsiPy = Join-Path $WixDir "createmsi.py"
 
-    python $CreateMsiPy $VdclientJson
+    python $CreateMsiPy vdiclient.json
     if ($LASTEXITCODE -ne 0) {
         throw "MSI creation failed with exit code $LASTEXITCODE"
     }
