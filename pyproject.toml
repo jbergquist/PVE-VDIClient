@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pve-vdiclient"
-dynamic = ["version"]
+version = "2.0.2"
 description = "Flask-based web client for Proxmox VE Virtual Desktop Infrastructure"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -61,9 +61,6 @@ vdiclient = [
     "static/*.png",
     "static/*.ico",
 ]
-
-[tool.setuptools.dynamic]
-version = {attr = "vdiclient.__version__"}
 
 [tool.black]
 line-length = 88

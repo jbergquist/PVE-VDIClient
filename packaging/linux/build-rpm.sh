@@ -38,7 +38,7 @@ tar --exclude='.git' \
     --exclude='dist' \
     --exclude='*.egg-info' \
     --exclude='screenshots' \
-    --transform="s,^,$PWD/pve-vdiclient-$VERSION/," \
+    --transform="s,^,pve-vdiclient-$VERSION/," \
     -czf "$RPMBUILD_DIR/SOURCES/$TARBALL" \
     vdiclient/ \
     vdiclient.py \
