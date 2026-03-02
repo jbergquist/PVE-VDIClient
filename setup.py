@@ -1,7 +1,7 @@
 """Setup configuration for PVE VDI Client."""
 
 import os
-from setuptools import setup, find_packages
+from setuptools import setup
 
 # Read version from vdiclient/__init__.py
 version = {}
@@ -25,7 +25,7 @@ setup(
         "Bug Tracker": "https://github.com/jbergquist/PVE-VDIClient/issues",
         "Source Code": "https://github.com/jbergquist/PVE-VDIClient",
     },
-    packages=find_packages(),
+    packages=["vdiclient"],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: System Administrators",
