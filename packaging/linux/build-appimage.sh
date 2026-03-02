@@ -67,9 +67,12 @@ if [ ! -f "$APPIMAGETOOL" ]; then
 fi
 
 # Build AppImage
+# APPIMAGE_EXTRACT_AND_RUN=1 lets appimagetool run in containers where FUSE
+# kernel module is unavailable (it extracts itself instead of mounting)
 echo "Building AppImage..."
 cd "$BUILD_DIR"
-ARCH=x86_64 "$APPIMAGETOOL" "$APPDIR" "$PROJECT_ROOT/VDIClient-$VERSION-x86_64.AppImage"
+ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 \
+    "$APPIMAGETOOL" "$APPDIR" "$PROJECT_ROOT/VDIClient-$VERSION-x86_64.AppImage"
 
 # Verify the AppImage was created
 APPIMAGE_FILE="$PROJECT_ROOT/VDIClient-$VERSION-x86_64.AppImage"
