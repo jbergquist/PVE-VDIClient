@@ -34,8 +34,8 @@ fi
 # Check for required runtimes
 if ! flatpak list --runtime | grep -q "org.freedesktop.Platform"; then
     echo "Installing required Flatpak runtime..."
-    flatpak install -y flathub org.freedesktop.Platform//23.08 || true
-    flatpak install -y flathub org.freedesktop.Sdk//23.08 || true
+    flatpak install -y flathub org.freedesktop.Platform//25.08 || true
+    flatpak install -y flathub org.freedesktop.Sdk//25.08 || true
 fi
 
 # Clean previous build
