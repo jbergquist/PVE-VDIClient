@@ -37,11 +37,14 @@ jobs:
           chmod +x packaging/linux/build-deb.sh
           ./packaging/linux/build-deb.sh
 
+      - name: Move .deb to workspace
+        run: mv ../pve-vdiclient_*.deb .
+
       - name: Upload .deb artifact
         uses: actions/upload-artifact@v4
         with:
           name: debian-package
-          path: ../pve-vdiclient_*.deb
+          path: pve-vdiclient_*.deb
           if-no-files-found: error
 
   # Job 2: Build Fedora .rpm package
