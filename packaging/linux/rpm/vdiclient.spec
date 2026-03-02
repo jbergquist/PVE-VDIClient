@@ -67,7 +67,7 @@ install -D -m 0644 vdiclient.ini.example \
 %{_docdir}/%{name}/vdiclient.ini.example
 
 %changelog
-* Sat Mar 01 2026 jbergquist <jbergquist@users.noreply.github.com> - 2.0.2-1
+* Sat Mar 01 2026 jbergquist <jb+gh@bergnet.se> - 2.0.2-1
 - Initial RPM package release
 - Refactored as proper Python package
 - Platform abstraction layer for cross-platform support

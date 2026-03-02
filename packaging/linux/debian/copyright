@@ -1,6 +1,6 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: pve-vdiclient
-Upstream-Contact: jbergquist <jbergquist@users.noreply.github.com>
+Upstream-Contact: jbergquist <jb+gh@bergnet.se>
 Source: https://github.com/jbergquist/PVE-VDIClient
 
 Files: *
