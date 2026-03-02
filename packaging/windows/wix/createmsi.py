@@ -350,8 +350,13 @@ class PackageGenerator:
 		if not os.path.isdir(wixdir):
 			wixdir = 'c:\\Program Files (x86)\\Wix Toolset v3.11\\bin'
 		if not os.path.isdir(wixdir):
-			print("ERROR: This script requires WIX")
-			sys.exit(1)
+			# Fall back to finding candle/wixl via PATH
+			candle = shutil.which('candle') or shutil.which('wixl')
+			if candle:
+				wixdir = os.path.dirname(candle)
+			else:
+				print("ERROR: This script requires WIX")
+				sys.exit(1)
 		if platform.system() == "Windows":
 			subprocess.check_call([os.path.join(wixdir, 'candle'), self.main_xml])
 			subprocess.check_call([os.path.join(wixdir, 'light'),
