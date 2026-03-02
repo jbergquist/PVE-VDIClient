@@ -159,9 +159,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller
 
-      - name: Install WIX Toolset
+      - name: Add WiX to PATH
         run: |
-          choco install wixtoolset --version 3.11.2 -y
           $wixBin = (Get-Item "C:\Program Files (x86)\WiX Toolset v*\bin" |
             Sort-Object Name | Select-Object -Last 1).FullName
           Write-Host "WiX bin: $wixBin"
