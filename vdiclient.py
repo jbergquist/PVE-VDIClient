@@ -553,7 +553,7 @@ def vmaction(vmnode, vmid, vmtype, action="connect"):
         logger.debug("SPICE Config:\n%s", inistring)
 
     # Launch virt-viewer
-    pcmd = [G.vvcmd]
+    pcmd = list(G.vvcmd)
     if G.kiosk and G.viewer_kiosk:
         pcmd.extend(["--kiosk", "--kiosk-quit", "on-disconnect"])
     elif G.fullscreen:

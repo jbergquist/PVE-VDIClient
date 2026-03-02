@@ -24,7 +24,7 @@ Eliminates hardcoded os.name checks and shell injection vulnerabilities.
 import os
 import sys
 import shutil
-from typing import List, Optional
+from typing import List
 
 
 class Platform:
@@ -78,27 +78,54 @@ class Platform:
             return []
 
     @staticmethod
-    def find_virt_viewer() -> Optional[str]:
+    def _flatpak_host_has(cmd: str) -> bool:
+        """Return True if *cmd* is found on the host via flatpak-spawn."""
+        import subprocess
+        try:
+            subprocess.check_call(
+                ["flatpak-spawn", "--host", "which", cmd],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            return True
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            return False
+
+    @staticmethod
+    def _flatpak_app_installed(app_id: str) -> bool:
+        """Return True if the given Flatpak app is installed on the host."""
+        import subprocess
+        try:
+            result = subprocess.check_output(
+                ["flatpak-spawn", "--host", "flatpak", "list", "--app", "--columns=application"],
+                stderr=subprocess.DEVNULL,
+                text=True,
+            )
+            return app_id in result
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            return False
+
+    @staticmethod
+    def find_virt_viewer() -> List[str]:
         """Locate virt-viewer/remote-viewer binary safely.
 
         Uses platform-appropriate discovery:
-        - Windows: Registry lookup via ftype command (winreg in future)
-        - POSIX: shutil.which() for remote-viewer
+        - Windows: Registry lookup via ftype command
+        - POSIX (Flatpak): flatpak-spawn --host, preferring host binary,
+          falling back to the org.virt_manager.virt-viewer Flatpak
+        - POSIX (native): shutil.which() for remote-viewer or virt-viewer
 
         Returns:
-            Path to virt-viewer executable, or None if not found
+            Command list to launch virt-viewer (may be multi-element)
 
         Raises:
-            RuntimeError: If virt-viewer is not installed
+            RuntimeError: If virt-viewer is not found
         """
-        vv_path: Optional[str] = None
-
         if Platform.is_windows():
             # Windows: Query file type association for .vvfile
             try:
                 import subprocess
 
-                # Use shell=False with list args for safety
                 result = subprocess.check_output(
                     ["cmd", "/c", "ftype", "VirtViewer.vvfile"],
                     stderr=subprocess.DEVNULL,
@@ -108,12 +135,11 @@ class Platform:
                 # Parse: VirtViewer.vvfile="C:\Path\remote-viewer.exe" "%1"
                 if "=" in result:
                     cmdline = result.split("=", 1)[1].strip()
-                    # Extract quoted path
                     if cmdline.startswith('"'):
                         end_quote = cmdline.index('"', 1)
                         vv_path = cmdline[1:end_quote]
                         if os.path.isfile(vv_path):
-                            return vv_path
+                            return [vv_path]
 
                 raise RuntimeError("virt-viewer not properly registered")
 
@@ -124,10 +150,27 @@ class Platform:
                 ) from e
 
         elif Platform.is_posix():
-            # POSIX: Use shutil.which() for safe binary lookup
-            vv_path = shutil.which("remote-viewer")
-            if vv_path:
-                return vv_path
+            # Inside a Flatpak sandbox host binaries are not on PATH.
+            # Use flatpak-spawn --host to reach the host or another Flatpak.
+            if os.path.exists("/.flatpak-info"):
+                for name in ("remote-viewer", "virt-viewer"):
+                    if Platform._flatpak_host_has(name):
+                        return ["flatpak-spawn", "--host", name]
+                if Platform._flatpak_app_installed("org.virt_manager.virt-viewer"):
+                    return ["flatpak-spawn", "--host", "flatpak", "run",
+                            "org.virt_manager.virt-viewer"]
+                raise RuntimeError(
+                    "virt-viewer not found on host.\n"
+                    "  Fedora/RHEL:   sudo dnf install virt-viewer\n"
+                    "  Debian/Ubuntu: sudo apt install virt-viewer\n"
+                    "  Flatpak:       flatpak install flathub org.virt_manager.virt-viewer"
+                )
+
+            # Native POSIX: try both names provided by the virt-viewer package
+            for name in ("remote-viewer", "virt-viewer"):
+                vv_path = shutil.which(name)
+                if vv_path:
+                    return [vv_path]
 
             raise RuntimeError(
                 "virt-viewer not found. Install with:\n"
