@@ -49,7 +49,7 @@ mkdir -p "$REPO_DIR"
 # Build the Flatpak
 echo "Building Flatpak..."
 cd "$PROJECT_ROOT"
-flatpak-builder --force-clean --repo="$REPO_DIR" \
+flatpak-builder --force-clean --disable-rofiles-fuse --repo="$REPO_DIR" \
     "$BUILD_DIR" \
     "$FLATPAK_DIR/$APP_ID.yml"
 

@@ -28,7 +28,10 @@ jobs:
             dh-python \
             python3-all \
             python3-setuptools \
-            python3-stdeb
+            python3-stdeb \
+            python3-pip
+          pip3 install --break-system-packages --upgrade stdeb \
+            || pip3 install --upgrade stdeb
 
       - name: Build .deb package
         run: |
@@ -61,6 +64,7 @@ jobs:
             python3-devel \
             python3-setuptools \
             python3-pip \
+            nodejs \
             tar
 
       - name: Build .rpm package
