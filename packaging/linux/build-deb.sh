@@ -32,21 +32,13 @@ if [ -t 0 ]; then
         dh-python \
         python3-all \
         python3-setuptools \
-        python3-stdeb \
-        python3-flask \
-        python3-requests \
-        python3-urllib3 \
-        python3-proxmoxer || echo "Warning: Could not install all dependencies"
+        fakeroot \
+        devscripts || echo "Warning: Could not install all dependencies"
 fi
 
-# Build the package using debuild (preferred) or stdeb
-if command -v debuild &> /dev/null; then
-    echo "Building with debuild..."
-    debuild -us -uc -b
-else
-    echo "Building with stdeb..."
-    python3 setup.py --command-packages=stdeb.command bdist_deb
-fi
+# Build the binary package with fakeroot via dpkg-buildpackage
+echo "Building with dpkg-buildpackage..."
+dpkg-buildpackage -us -uc -b -rfakeroot
 
 # Find and display the generated .deb file
 DEB_FILE=$(find .. -maxdepth 1 -name "pve-vdiclient_*.deb" -type f | head -1)
