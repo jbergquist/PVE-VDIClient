@@ -117,8 +117,20 @@ modules:
       - install -D -m 0644 packaging/linux/flatpak/org.proxmox.VDIClient.desktop
         ${FLATPAK_DEST}/share/applications/org.proxmox.VDIClient.desktop
 
-      # Install icon
-      - install -D -m 0644 vdiclient/static/vdiclient.png
+      # Install icon — pad non-square source image to 256x256 transparent canvas
+      - |
+        python3 - <<'EOF'
+        import sys, glob
+        sp = glob.glob('/app/lib/python*/site-packages')
+        if sp:
+            sys.path.insert(0, sp[0])
+        from PIL import Image
+        img = Image.open('vdiclient/static/vdiclient.png').convert('RGBA')
+        canvas = Image.new('RGBA', (256, 256), (0, 0, 0, 0))
+        canvas.paste(img, ((256 - img.width) // 2, (256 - img.height) // 2))
+        canvas.save('/tmp/vdiclient-icon.png')
+        EOF
+      - install -D -m 0644 /tmp/vdiclient-icon.png
         ${FLATPAK_DEST}/share/icons/hicolor/256x256/apps/org.proxmox.VDIClient.png
 
       # Install AppStream metadata
